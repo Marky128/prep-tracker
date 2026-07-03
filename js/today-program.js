@@ -179,14 +179,16 @@ const TodayProgram = (() => {
   }
 
   function renderShared() {
+    const isToday = state.date === todayStr();
     const wi = $('#weightInput');
     wi.value = state.weight == null ? '' : String(state.weight);
     $('#weightStatus').textContent = state.weight == null
       ? 'optional — trend beats daily noise'
-      : 'logged ' + state.weight.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + ' today';
+      : 'logged ' + state.weight.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + (isToday ? ' today' : '');
     $('.weight-unit').textContent = Targets.unitLabel(profile.units);
     $$('#workoutChips .chip').forEach(c => c.classList.toggle('active', c.dataset.workout === state.workout));
-    $('#dateLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+    $('#dateLabel').textContent = new Date(state.date + 'T12:00:00')
+      .toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
   }
 
   function render() {
@@ -289,7 +291,7 @@ const TodayProgram = (() => {
   }
 
   /* ---------- mount / unmount ---------- */
-  async function mount(p) {
+  async function mount(p, date) {
     profile = p;
     await loadProgram();
     wire();
@@ -299,7 +301,7 @@ const TodayProgram = (() => {
       $('#planReference').innerHTML = referenceHTML(program.reference);
     }
     active = true;
-    await loadDay(todayStr());
+    await loadDay(date || todayStr());
   }
 
   function unmount() { active = false; }

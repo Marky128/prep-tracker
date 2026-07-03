@@ -45,28 +45,53 @@
     return (rec.meals || []).some(Boolean);
   }
 
-  /* pinned semantics: a day with entries keeps its recorded mode; anything
-     else follows the active mode */
-  async function decideTodayMode() {
-    const rec = await DB.getDay(todayStr()).catch(() => null);
-    if (rec && rec.mode && hasEntries(rec)) return rec.mode;
-    return activeProgram() ? 'program' : 'custom';
-  }
+  let editingDate = null; // set while viewing/editing a past day
 
-  async function mountToday() {
-    const mode = await decideTodayMode();
-    if (mode === 'custom') {
-      TodayProgram.unmount();
-      await TodayCustom.mount(profile);
-    } else {
-      TodayCustom.unmount();
-      restoreProgramHeader();
-      await TodayProgram.mount(profile);
+  function renderEditBanner() {
+    const b = $('#editBanner');
+    b.hidden = !editingDate;
+    if (editingDate) {
+      $('#editDateLabel').textContent = new Date(editingDate + 'T12:00:00')
+        .toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
     }
   }
 
+  /* Mount any date. Pinned semantics: today with entries keeps its recorded
+     mode; a past day always renders in the mode it was logged in; an empty
+     day follows the active mode. */
+  async function mountDay(date) {
+    editingDate = date === todayStr() ? null : date;
+    renderEditBanner();
+    const rec = await DB.getDay(date).catch(() => null);
+    let mode;
+    if (rec && rec.mode && (editingDate || hasEntries(rec))) mode = rec.mode;
+    else mode = activeProgram() ? 'program' : 'custom';
+    if (mode === 'custom') {
+      TodayProgram.unmount();
+      await TodayCustom.mount(profile, date);
+    } else {
+      TodayCustom.unmount();
+      restoreProgramHeader();
+      await TodayProgram.mount(profile, date);
+    }
+  }
+  function mountToday() { return mountDay(todayStr()); }
+
+  /* history taps land here (charts, heatmaps, later the week strip) */
+  window.PT.openDay = async date => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > todayStr()) return; // the future isn't editable
+    $$('.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === 'today'));
+    Object.entries(tabEls).forEach(([k, el]) => el.classList.toggle('active', k === 'today'));
+    try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }
+    catch (e) { window.scrollTo(0, 0); }
+    await mountDay(date);
+  };
+
+  $('#backToToday').addEventListener('click', () => { mountToday(); });
+
   /* ---------- midnight rollover ---------- */
   async function checkRollover() {
+    if (editingDate) return; // an edit session is pinned to its date
     const t = todayStr();
     const cur = TodayCustom.isActive() ? DayStore.date() : TodayProgram.currentDate();
     if (profile && cur && cur !== t) {

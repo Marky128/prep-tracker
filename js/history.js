@@ -33,6 +33,7 @@ const HistoryView = (() => {
 
   let range = 7;
   let cache = null; // Map<dateStr, record>
+  let lastKeys = []; // date keys of the current chart range (for tap→edit)
   const charts = {};
 
   /* ---------- date helpers (local time; noon avoids DST edge cases) ---------- */
@@ -96,6 +97,11 @@ const HistoryView = (() => {
       maintainAspectRatio: false,
       animation: REDUCED ? false : { duration: 350 },
       interaction: { mode: 'nearest', intersect: false },
+      onClick: (evt, els) => {
+        if (els && els.length && window.PT && window.PT.openDay) {
+          window.PT.openDay(lastKeys[els[0].index]);
+        }
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -145,6 +151,7 @@ const HistoryView = (() => {
     const dates = [];
     for (let i = range - 1; i >= 0; i--) dates.push(addDays(today, -i));
     const keys = dates.map(dstr);
+    lastKeys = keys;
     const recs = keys.map(k => map.get(k) || null);
     const firstLogged = map.size ? [...map.keys()].sort()[0] : null;
 
@@ -308,6 +315,7 @@ const HistoryView = (() => {
         const hit = workoutOf(rec) === w.id;
         cell.className = 'hm-cell ' + (!counted[i] ? 'blank' : hit ? 'on' : 'off');
         cell.title = keys[i] + ' · ' + w.label + (hit ? ' ✓' : '');
+        cell.dataset.date = keys[i];
         row.appendChild(cell);
       });
       grid.appendChild(row);
@@ -347,6 +355,7 @@ const HistoryView = (() => {
         const cell = document.createElement('i');
         cell.className = 'hm-cell ' + (!counted[i] ? 'blank' : habitDone(rec, h.id) ? 'on' : 'off');
         cell.title = keys[i] + ' · ' + h.label + (habitDone(rec, h.id) ? ' ✓' : '');
+        cell.dataset.date = keys[i];
         row.appendChild(cell);
       });
       wrap.appendChild(row);
@@ -425,6 +434,17 @@ const HistoryView = (() => {
     const best = streaks(map).sort((a, b) => b.streak - a.streak)[0];
     set('statStreak', best && best.streak > 0 ? best.streak + 'd ' + best.label : '—');
   }
+
+  /* ---------- tap a day cell to open it for editing ---------- */
+  ['#heatmap', '#trainmap'].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el) el.addEventListener('click', e => {
+      const cell = e.target.closest('.hm-cell');
+      if (cell && cell.dataset.date && window.PT && window.PT.openDay) {
+        window.PT.openDay(cell.dataset.date);
+      }
+    });
+  });
 
   /* ---------- range toggle ---------- */
   document.querySelectorAll('.range-toggle .chip').forEach(btn => {

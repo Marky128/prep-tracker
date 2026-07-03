@@ -127,14 +127,16 @@ const TodayCustom = (() => {
   /* ---------- shared controls (weight / training / date) ---------- */
   function renderShared() {
     const rec = DayStore.record();
+    const isToday = DayStore.date() === DayStore.todayStr();
     const wi = $('#weightInput');
     wi.value = rec.weight == null ? '' : String(rec.weight);
     $('#weightStatus').textContent = rec.weight == null
       ? 'optional — trend beats daily noise'
-      : 'logged ' + rec.weight.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + ' today';
+      : 'logged ' + rec.weight.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + (isToday ? ' today' : '');
     $('.weight-unit').textContent = Targets.unitLabel(profile.units);
     $$('#workoutChips .chip').forEach(c => c.classList.toggle('active', c.dataset.workout === rec.workout));
-    $('#dateLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+    $('#dateLabel').textContent = new Date(DayStore.date() + 'T12:00:00')
+      .toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
   }
 
   function renderAll() {
@@ -493,7 +495,7 @@ const TodayCustom = (() => {
   function toggleSharedHabit() { /* program habit list is hidden in custom mode */ }
 
   /* ---------- mount / unmount ---------- */
-  async function mount(p) {
+  async function mount(p, date) {
     profile = p;
     wire();
     active = true;
@@ -501,7 +503,7 @@ const TodayCustom = (() => {
     $('#customSections').hidden = false;
     $('#foodsManage').hidden = false;
     $$('.tabbar button[data-tab="plan"] span').forEach(s => { s.textContent = 'Foods'; });
-    await DayStore.load(DayStore.todayStr(), p);
+    await DayStore.load(date || DayStore.todayStr(), p);
     renderAll();
     renderManage('');
   }
@@ -516,13 +518,6 @@ const TodayCustom = (() => {
   }
 
   function isActive() { return active; }
-  async function checkRollover() {
-    const t = DayStore.todayStr();
-    if (active && DayStore.date() !== t) {
-      await DayStore.load(t, profile);
-      renderAll();
-    }
-  }
 
-  return { mount, unmount, isActive, checkRollover, setWeight, setWorkout };
+  return { mount, unmount, isActive, setWeight, setWorkout };
 })();
