@@ -1,6 +1,6 @@
 /* Prep Tracker service worker — precache everything, serve cache-first.
    Bump CACHE when any asset changes so clients pick up the new version. */
-const CACHE = 'prep-tracker-v14';
+const CACHE = 'prep-tracker-v15';
 
 const ASSETS = [
   './',

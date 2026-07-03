@@ -91,7 +91,7 @@
     await mountDay(date);
   };
 
-  $('#backToToday').addEventListener('click', () => { mountToday(); });
+  $('#editBanner').addEventListener('click', () => { mountToday(); });
 
   /* ---------- midnight rollover ---------- */
   async function checkRollover() {
