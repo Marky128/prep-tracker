@@ -377,10 +377,15 @@ body.onb-open{overflow:hidden}
 }
 .btn-slim{width:auto;min-height:40px;padding:0 18px;margin-bottom:0;flex:none}
 
-/* custom-mode: program sections hidden until their data-driven versions render */
-body.mode-custom #tab-today .tracker,
-body.mode-custom #tab-today .meal,
+/* custom-mode: swap program sections for the day-log versions */
+body.mode-custom #tab-today .meal:not(.log-sec),
 body.mode-custom #habitsBlock{display:none}
+body.mode-custom #tab-plan .block:not(#foodsManage),
+body.mode-custom #tab-plan footer{display:none}
+body.mode-custom #tab-plan #foodsManage{display:block}
+body:not(.mode-custom) .bar-kcal{display:none}
+body.mode-custom .bars{grid-template-columns:repeat(4,1fr)}
+.bar-wrap.in .bar>i{background:var(--green)}
 
 .empty-card{
   background:var(--iron);border:1px solid var(--line);border-radius:var(--radius);
@@ -388,6 +393,58 @@ body.mode-custom #habitsBlock{display:none}
 }
 .empty-card b{display:block;font-size:15px;margin-bottom:6px}
 .empty-card .note{margin-top:4px}
+
+/* ---------- custom day log ---------- */
+.log-sec .sec-kcal{
+  flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);
+  font-variant-numeric:tabular-nums;
+}
+.item-list{list-style:none;margin-bottom:2px}
+.item{
+  display:flex;flex-direction:column;gap:2px;padding:10px 0;
+  border-bottom:1px solid var(--line);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.item:last-child{border-bottom:none}
+.item:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.item-main{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-weight:500}
+.item-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item-qty{flex:none;color:var(--mute);font-family:'IBM Plex Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums}
+.item-macros{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}
+.sec-empty{margin:2px 0 4px}
+.add-row{
+  width:100%;min-height:46px;background:transparent;border:1px dashed var(--line);
+  border-radius:10px;color:var(--mute);font-family:'Inter',sans-serif;
+  font-size:13px;font-weight:600;cursor:pointer;margin-top:12px;
+  -webkit-tap-highlight-color:transparent;transition:border-color .18s,color .18s;
+}
+.add-row:active{border-color:var(--red);color:var(--bone)}
+
+/* ---------- add / item sheets ---------- */
+.add-tabs{margin-bottom:16px}
+.qa-grid{grid-template-columns:1fr 1fr}
+.save-food-toggle{
+  border:1px solid var(--line)!important;border-radius:12px;background:var(--iron);
+  margin:2px 0 14px;min-height:50px;
+}
+.food-results{max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.food-row{border-bottom:1px solid var(--line)}
+.food-row:last-child{border-bottom:none}
+.food-row-main{display:flex;align-items:center;gap:8px;min-height:54px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.star{
+  width:42px;height:42px;flex:none;background:none;border:none;color:var(--steel);
+  cursor:pointer;display:grid;place-items:center;-webkit-tap-highlight-color:transparent;
+}
+.star svg{width:18px;height:18px}
+.star.on{color:var(--red)}
+.food-info{min-width:0;flex:1}
+.food-name{display:block;font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.food-meta{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--mute);font-variant-numeric:tabular-nums}
+.food-qty-form{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:2px 0 14px 50px}
+.food-qty-form .field-input{min-height:44px;width:132px}
+.food-qty-form .btn{margin-bottom:0}
+.food-del{width:auto;margin:0;min-height:44px;font-size:12px}
+#foodsManage .food-results{max-height:none}
 
 /* ---------- settings rows ---------- */
 .set-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);margin-bottom:2px}

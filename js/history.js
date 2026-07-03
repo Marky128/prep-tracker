@@ -54,6 +54,7 @@ const HistoryView = (() => {
 
   /* ---------- record accessors ---------- */
   function mealsDone(rec) {
+    if (rec && rec.mode === 'custom') return null; // custom days aren't 0/5 misses
     return rec && Array.isArray(rec.meals) ? rec.meals.filter(Boolean).length : 0;
   }
   function protein(rec) {
@@ -395,9 +396,11 @@ const HistoryView = (() => {
       set('statMeals', '—');
       set('statProtein', '—');
     } else {
-      const m = activeDays.reduce((a, x) => a + mealsDone(x.rec), 0) / denom;
+      const mealVals = activeDays.map(x => mealsDone(x.rec)).filter(v => v != null);
+      set('statMeals', mealVals.length
+        ? (mealVals.reduce((a, v) => a + v, 0) / mealVals.length).toFixed(1) + '/5'
+        : '—');
       const p = activeDays.reduce((a, x) => a + protein(x.rec), 0) / denom;
-      set('statMeals', m.toFixed(1) + '/5');
       set('statProtein', Math.round(p) + 'g');
     }
 

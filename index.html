@@ -161,15 +161,19 @@
         </div>
       </div>
       <div class="bars">
-        <div>
+        <div class="bar-wrap bar-kcal">
+          <div class="bar"><i id="barK"></i></div>
+          <div class="bar-lab"><span>Kcal</span><span id="labK">0</span></div>
+        </div>
+        <div class="bar-wrap" id="wrapP">
           <div class="bar"><i id="barP"></i></div>
           <div class="bar-lab"><span>Protein</span><span id="labP">0 / 316g</span></div>
         </div>
-        <div>
+        <div class="bar-wrap" id="wrapC">
           <div class="bar"><i id="barC"></i></div>
           <div class="bar-lab"><span>Carbs</span><span id="labC">0 / 196g</span></div>
         </div>
-        <div>
+        <div class="bar-wrap" id="wrapF">
           <div class="bar"><i id="barF"></i></div>
           <div class="bar-lab"><span>Fat</span><span id="labF">0 / 45g</span></div>
         </div>
@@ -356,13 +360,8 @@
       </div>
     </section>
 
-    <!-- CUSTOM MODE PLACEHOLDER (until Phase 3 ships logging) -->
-    <section class="block" id="customToday" hidden>
-      <div class="empty-card">
-        <b>Food logging lands in the next build</b>
-        <p class="note">Your targets are saved and ready — check back after the next update.</p>
-      </div>
-    </section>
+    <!-- CUSTOM MODE: day log sections (rendered by today-custom.js) -->
+    <div id="customSections" hidden></div>
 
     <!-- DAILY HABITS -->
     <section class="block" id="habitsBlock">
@@ -393,6 +392,12 @@
           <span class="habit-name">Supplements</span><span class="habit-meta">Taken</span>
         </button>
       </div>
+    </section>
+
+    <!-- CUSTOM MODE: habits from the profile (rendered by today-custom.js) -->
+    <section class="block" id="customHabits" hidden>
+      <h3>Daily Habits</h3>
+      <div class="habit-list" id="customHabitList"></div>
     </section>
 
     <!-- BODYWEIGHT -->
@@ -534,6 +539,16 @@
       </table></div>
     </section>
 
+    <!-- CUSTOM MODE: food library management (rendered by today-custom.js) -->
+    <section class="block" id="foodsManage" hidden>
+      <h3>My Foods</h3>
+      <label class="field">
+        <span class="field-input search-input"><input id="manageSearch" type="search" placeholder="Search your foods" aria-label="Search my foods"></span>
+      </label>
+      <div class="food-results" id="manageResults"></div>
+      <p class="note">Star a food to pin it to the top of the add sheet. Foods you log from search or save from quick-adds land here automatically.</p>
+    </section>
+
     <footer>
       <span>PREP PROTOCOL</span>
       <span>5 MEALS / DAY</span>
@@ -613,12 +628,85 @@
   <div class="meta">All data stays on this device. Export regularly as a backup.<br>Built with Claude Code.</div>
 </div>
 
+<!-- ======================= ADD FOOD SHEET ======================= -->
+<div class="sheet-backdrop" id="addBackdrop"></div>
+<div class="sheet" id="addSheet" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+  <div class="sheet-head">
+    <h4 id="addTitle">Add food</h4>
+    <button class="icon-btn" id="addClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="chips add-tabs" id="addTabs">
+    <button class="chip active" data-pane="quick">Quick add</button>
+    <button class="chip" data-pane="foods">My foods</button>
+  </div>
+
+  <div class="add-pane" id="paneQuick">
+    <label class="field">
+      <span class="field-lab">Name (optional)</span>
+      <input type="text" id="qaName" placeholder="e.g. Chicken &amp; rice bowl" maxlength="60">
+    </label>
+    <div class="field-grid qa-grid">
+      <label class="field"><span class="field-lab">Protein</span><span class="field-input"><input id="qaP" type="number" inputmode="decimal" min="0"><i>g</i></span></label>
+      <label class="field"><span class="field-lab">Carbs</span><span class="field-input"><input id="qaC" type="number" inputmode="decimal" min="0"><i>g</i></span></label>
+      <label class="field"><span class="field-lab">Fat</span><span class="field-input"><input id="qaF" type="number" inputmode="decimal" min="0"><i>g</i></span></label>
+      <label class="field"><span class="field-lab">Calories</span><span class="field-input"><input id="qaKcal" type="number" inputmode="numeric" min="0"><i>kcal</i></span></label>
+    </div>
+    <p class="note" id="qaHint">Calories auto-fill from macros — tap to override.</p>
+    <button class="habit save-food-toggle" id="qaSave">
+      <span class="check"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="habit-name">Save to My Foods</span>
+    </button>
+    <button class="btn btn-primary" id="qaAdd">Add to Breakfast</button>
+  </div>
+
+  <div class="add-pane" id="paneFoods" hidden>
+    <label class="field">
+      <span class="field-input search-input"><input id="foodSearch" type="search" placeholder="Search my foods" aria-label="Search my foods"></span>
+    </label>
+    <div class="food-results" id="foodResults"></div>
+  </div>
+</div>
+
+<!-- ======================= EDIT ITEM SHEET ======================= -->
+<div class="sheet-backdrop" id="itemBackdrop"></div>
+<div class="sheet" id="itemSheet" role="dialog" aria-modal="true" aria-labelledby="itemTitle">
+  <div class="sheet-head">
+    <h4 id="itemTitle">Edit item</h4>
+    <button class="icon-btn" id="itemClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="set-row">
+    <div class="set-info">
+      <div class="set-name" id="itemName">—</div>
+      <div class="set-meta" id="itemMacros">—</div>
+    </div>
+    <span class="field-input tol-input"><input id="itemQty" type="number" inputmode="decimal" min="0" step="any"><i id="itemUnit">g</i></span>
+  </div>
+  <div class="field">
+    <span class="field-lab">Meal</span>
+    <div class="chips" id="itemSections">
+      <button class="chip" data-sec="breakfast">Breakfast</button>
+      <button class="chip" data-sec="lunch">Lunch</button>
+      <button class="chip" data-sec="dinner">Dinner</button>
+      <button class="chip" data-sec="snacks">Snacks</button>
+    </div>
+  </div>
+  <button class="btn btn-primary" id="itemSave">Save</button>
+  <button class="btn-ghost" id="itemDelete">Remove from today</button>
+</div>
+
 <script src="vendor/chart.umd.min.js"></script>
 <script src="js/migrate.js"></script>
 <script src="js/db.js"></script>
 <script src="js/targets.js"></script>
 <script src="js/history.js"></script>
 <script src="js/onboarding.js"></script>
+<script src="js/day-store.js"></script>
+<script src="js/foods.js"></script>
+<script src="js/today-custom.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

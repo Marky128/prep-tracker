@@ -36,6 +36,25 @@
   const weightStatus = $('#weightStatus');
   const WEIGHT_HINT = weightStatus.textContent;
 
+  // header strings from the shipped markup — restored when the program
+  // view mounts after a stint in custom mode
+  const PROGRAM_HEADER = {
+    eyebrow: $('#tab-today header .eyebrow').textContent,
+    h1: $('#tab-today h1').innerHTML,
+    targets: $$('#tab-today .targets .target').map(el => ({
+      val: el.querySelector('.val').textContent,
+      lab: el.querySelector('.lab').textContent,
+    })),
+  };
+  function restoreProgramHeader() {
+    $('#tab-today header .eyebrow').textContent = PROGRAM_HEADER.eyebrow;
+    $('#tab-today h1').innerHTML = PROGRAM_HEADER.h1;
+    $$('#tab-today .targets .target').forEach((el, i) => {
+      el.querySelector('.val').textContent = PROGRAM_HEADER.targets[i].val;
+      el.querySelector('.lab').textContent = PROGRAM_HEADER.targets[i].lab;
+    });
+  }
+
   let profile = null;
   let state = null;
 
@@ -173,8 +192,11 @@
 
   async function checkRollover() {
     const t = todayStr();
-    if (state && state.date !== t) {
-      await loadDay(t); // yesterday is already saved
+    const rolled = TodayCustom.isActive()
+      ? DayStore.date() !== t
+      : state && state.date !== t;
+    if (rolled) {
+      await mountToday(); // yesterday is already saved; new day may change mode
       if (tabEls.history.classList.contains('active')) HistoryView.show();
     }
   }
@@ -235,10 +257,11 @@
     });
   });
 
-  /* ---------- training ---------- */
+  /* ---------- training (weight/training are shared across modes) ---------- */
   workoutChips.forEach(chip => {
     chip.addEventListener('click', () => {
       const id = chip.dataset.workout;
+      if (TodayCustom.isActive()) { TodayCustom.setWorkout(id); return; }
       state.workout = state.workout === id ? null : id; // re-tap deselects
       renderWorkout();
       persist();
@@ -250,7 +273,9 @@
     const v = parseFloat(weightInput.value.replace(',', '.'));
     const kg = profile && profile.units === 'kg';
     const lo = kg ? 25 : 50, hi = kg ? 320 : 700;
-    state.weight = Number.isFinite(v) && v >= lo && v <= hi ? Math.round(v * 10) / 10 : null;
+    const w = Number.isFinite(v) && v >= lo && v <= hi ? Math.round(v * 10) / 10 : null;
+    if (TodayCustom.isActive()) { TodayCustom.setWeight(w); return; }
+    state.weight = w;
     renderWeight();
     persist();
   });
@@ -333,32 +358,54 @@
     profile = p;
     window.PT.profile = p;
     await DB.putSetting('profile', p).catch(() => {});
-    document.body.classList.toggle('mode-custom', !activeProgram());
-    $('#customToday').hidden = !!activeProgram();
     updateSettingsUI();
     HistoryView.invalidate();
   }
 
+  function hasEntries(rec) {
+    if (!rec) return false;
+    if (rec.mode === 'custom') return (rec.items || []).length > 0;
+    return (rec.meals || []).some(Boolean);
+  }
+
+  /* pinned semantics: a day with entries keeps its recorded mode; anything
+     else follows the active mode */
+  async function decideTodayMode() {
+    const rec = await DB.getDay(todayStr()).catch(() => null);
+    if (rec && rec.mode && hasEntries(rec)) return rec.mode;
+    return activeProgram() ? 'program' : 'custom';
+  }
+
+  async function mountToday() {
+    const mode = await decideTodayMode();
+    if (mode === 'custom') {
+      await TodayCustom.mount(profile);
+    } else {
+      TodayCustom.unmount();
+      restoreProgramHeader();
+      await loadDay(todayStr());
+    }
+  }
+
   $('#editProfileBtn').addEventListener('click', () => {
     closeSheet();
-    Onboarding.show(profile, p => { saveProfile(p).then(() => loadDay(todayStr())); }, 1);
+    Onboarding.show(profile, p => { saveProfile(p).then(mountToday); }, 1);
   });
 
   $('#modeToggleBtn').addEventListener('click', async () => {
     const next = Object.assign({}, profile, { activeProgramId: activeProgram() ? null : 'ethan-prep' });
     await saveProfile(next);
     const todayRec = await DB.getDay(todayStr()).catch(() => null);
-    const hasEntries = todayRec && ((todayRec.meals || []).some(Boolean) || (todayRec.items || []).length);
     const note = $('#modeNote');
-    if (hasEntries) {
+    const wantMode = activeProgram() ? 'program' : 'custom';
+    if (todayRec && todayRec.mode && todayRec.mode !== wantMode && hasEntries(todayRec)) {
       const was = todayRec.mode === 'custom' ? 'Custom' : "Ethan's Plan";
       note.textContent = 'Today was logged in ' + was + ' — your new mode starts with the next day you log.';
-      note.hidden = false;
     } else {
-      note.textContent = 'Switched. Today will track in ' + (activeProgram() ? "Ethan's Plan" : 'Custom') + ' mode.';
-      note.hidden = false;
-      loadDay(todayStr());
+      note.textContent = 'Switched. Today tracks in ' + (activeProgram() ? "Ethan's Plan" : 'Custom') + ' mode.';
     }
+    note.hidden = false;
+    await mountToday();
   });
 
   $('#toleranceInput').addEventListener('change', () => {
@@ -459,10 +506,8 @@
   function startApp(p) {
     profile = p;
     window.PT.profile = p;
-    document.body.classList.toggle('mode-custom', !activeProgram());
-    $('#customToday').hidden = !!activeProgram();
     updateSettingsUI();
-    loadDay(todayStr());
+    mountToday();
   }
 
   async function boot() {
