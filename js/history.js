@@ -67,8 +67,36 @@ const HistoryView = (() => {
     }
     return 0;
   }
+  function profileUnits() {
+    return (window.PT && window.PT.profile && window.PT.profile.units) || 'lb';
+  }
   function weightOf(rec) {
-    return rec && typeof rec.weight === 'number' ? rec.weight : null;
+    if (!rec || typeof rec.weight !== 'number') return null;
+    const u = rec.weightUnit === 'kg' ? 'kg' : 'lbs';
+    return Targets.round1(Targets.toProfileUnits(rec.weight, u, profileUnits()));
+  }
+  function intakeOf(rec) {
+    // kcal only for days with actual food logged
+    if (!rec) return null;
+    const logged = rec.mode === 'custom' ? (rec.items || []).length > 0 : (rec.meals || []).some(Boolean);
+    if (!logged) return null;
+    if (rec.macros && typeof rec.macros.kcal === 'number') return rec.macros.kcal;
+    return rec.macros ? Targets.kcalFromMacros(rec.macros.p, rec.macros.c, rec.macros.f) : null;
+  }
+  /* compliance as a 0–1 fraction that works across modes */
+  function complianceOf(rec) {
+    if (!rec) return { v: 0, label: 'Nothing logged', done: false };
+    if (rec.mode === 'custom') {
+      if (!(rec.items || []).length) return { v: 0, label: 'Nothing logged', done: false };
+      const snap = rec.targetsSnapshot || {};
+      const verdict = Targets.judge(Math.round((rec.macros || {}).kcal || 0), snap.kcal, snap.tolerancePct, (snap.types || {}).kcal || 'band');
+      return verdict === 'in'
+        ? { v: 1, label: 'In calorie range', done: true }
+        : { v: 0.35, label: 'Logged — outside calorie range', done: false };
+    }
+    const total = (window.PT && window.PT.PLAN && window.PT.PLAN.length) || 5;
+    const n = Array.isArray(rec.meals) ? rec.meals.filter(Boolean).length : 0;
+    return { v: n / total, label: n + '/' + total + ' meals', done: n === total };
   }
   function habitDone(rec, id) {
     return !!(rec && rec.habits && rec.habits[id]);
@@ -180,15 +208,15 @@ const HistoryView = (() => {
       });
     }
 
-    /* --- compliance --- */
-    const meals = recs.map((r, i) => (counted[i] ? mealsDone(r) : null));
+    /* --- compliance (0–1 fraction; program = meals done, custom = kcal in range) --- */
+    const comp = recs.map((r, i) => (counted[i] ? complianceOf(r) : null));
     draw('chartCompliance', {
       data: {
         labels,
         datasets: [
           {
             type: 'line',
-            data: trail7(r => mealsDone(r)),
+            data: trail7(r => complianceOf(r).v),
             borderColor: BONE,
             borderWidth: 1.5,
             pointRadius: 0,
@@ -198,8 +226,8 @@ const HistoryView = (() => {
           },
           {
             type: 'bar',
-            data: meals,
-            backgroundColor: meals.map(v => (v === 5 ? GREEN : BLUE)),
+            data: comp.map(c => (c ? c.v : null)),
+            backgroundColor: comp.map(c => (c && c.done ? GREEN : BLUE)),
             borderRadius: 4,
             maxBarThickness: 18,
             order: 1,
@@ -208,9 +236,15 @@ const HistoryView = (() => {
       },
       options: (() => {
         const o = baseOptions();
-        o.scales.y.max = 5;
-        o.scales.y.ticks.stepSize = 1;
+        o.scales.y.max = 1;
+        o.scales.y.ticks.display = false;
         o.scales.x.grid.display = false;
+        o.plugins.tooltip.callbacks = {
+          label: ctx => {
+            const c = comp[ctx.dataIndex];
+            return c ? c.label : '';
+          },
+        };
         return o;
       })(),
     });
@@ -249,31 +283,50 @@ const HistoryView = (() => {
       })(),
     });
 
-    /* --- bodyweight --- */
+    /* --- bodyweight: trend line primary, raw weigh-ins as faded dots --- */
     const weights = recs.map(weightOf);
-    const ma = trail7(weightOf);
-    const hasWeights = weights.some(v => v != null);
+    // trend runs over full history (from the first weigh-in) so the line
+    // is warm at the window edge, then is sampled at the visible dates
+    const weighed = [...map.values()].filter(r => weightOf(r) != null)
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+    let trendData = keys.map(() => null);
+    if (weighed.length) {
+      const allDates = [];
+      const start = new Date(weighed[0].date + 'T12:00:00');
+      for (let d = new Date(start); ; d.setDate(d.getDate() + 1)) {
+        const k = dstr(d);
+        allDates.push(k);
+        if (k === keys[keys.length - 1]) break;
+        if (allDates.length > 3700) break; // ~10y guard
+      }
+      const wAll = new Map(weighed.map(r => [r.date, weightOf(r)]));
+      const trendAll = Targets.trendSeries(allDates, wAll);
+      trendData = keys.map(k => {
+        const t = trendAll.get(k);
+        return t == null ? null : Targets.round1(t);
+      });
+    }
     draw('chartWeight', {
       type: 'line',
       data: {
         labels,
         datasets: [
           {
-            data: weights,
+            data: trendData,
             borderColor: BLUE,
-            borderWidth: 2,
-            pointRadius: range === 7 ? 3 : 2,
-            pointBackgroundColor: BLUE,
-            tension: 0.2,
+            borderWidth: 2.5,
+            pointRadius: 0,
+            tension: 0.3,
             spanGaps: true,
+            order: 0,
           },
           {
-            data: hasWeights ? ma : [],
-            borderColor: GREEN,
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.35,
-            spanGaps: true,
+            data: weights,
+            showLine: false,
+            pointRadius: range === 7 ? 3 : 2.5,
+            pointBackgroundColor: 'rgba(47,116,208,.35)',
+            pointBorderWidth: 0,
+            order: 1,
           },
         ],
       },
@@ -297,6 +350,71 @@ const HistoryView = (() => {
     renderTraining(keys, recs, trainCounted);
     renderStreaks(map);
     renderStats(map);
+    renderExpenditure(map);
+  }
+
+  /* ---------- expenditure estimate (rolling 21 days) ---------- */
+  let lastSuggestion = null;
+  let expWired = false;
+
+  function renderExpenditure(map) {
+    const today = noonToday();
+    const entries = [];
+    for (let i = 20; i >= 0; i--) {
+      const k = dstr(addDays(today, -i));
+      const rec = map.get(k) || null;
+      entries.push({ date: k, kcal: intakeOf(rec), weight: weightOf(rec) });
+    }
+    const units = profileUnits();
+    const r = Targets.estimateExpenditure(entries, units);
+    const val = document.querySelector('#expVal');
+    const note = document.querySelector('#expNote');
+    const suggest = document.querySelector('#expSuggest');
+
+    if (!r.eligible) {
+      val.textContent = '—';
+      note.textContent = 'Not enough data yet (' + r.have + '/' + r.needed +
+        ' days with food logged in the last 3 weeks, plus weigh-ins near both ends).';
+      suggest.hidden = true;
+      lastSuggestion = null;
+      return;
+    }
+
+    const unitLab = units === 'kg' ? 'kg' : 'lb';
+    const chg = r.weeklyChange;
+    const chgTxt = chg === 0 ? 'held steady'
+      : (chg > 0 ? 'trended up ' : 'trended down ') + Math.abs(chg).toFixed(1) + ' ' + unitLab + '/week';
+    const hasProgramDays = [...map.values()].some(x => x && x.mode !== 'custom' && intakeOf(x) != null);
+    val.textContent = r.tdee.toLocaleString();
+    note.textContent = 'Over ' + r.days + ' logged days your intake averaged out while your trend weight ' +
+      chgTxt + ' — that puts your estimated daily burn at ' + r.tdee.toLocaleString() + ' kcal.' +
+      (hasProgramDays ? ' Program-day calories are computed from meal macros.' : '');
+
+    const profile = window.PT.profile || {};
+    const goal = (profile.estimator && profile.estimator.goalId) || 'maintain';
+    const goalX = goal === 'lose' ? 0.85 : goal === 'gain' ? 1.10 : 1.0;
+    const kcal = Math.round(r.tdee * goalX / 10) * 10;
+    const p = (profile.targets && profile.targets.p) || Math.round(kcal * 0.3 / 4);
+    const f = Math.round(kcal * 0.25 / 9);
+    const c = Math.max(0, Math.round((kcal - 4 * p - 9 * f) / 4));
+    lastSuggestion = { kcal, p, c, f };
+    const goalWord = goal === 'lose' ? 'to keep losing' : goal === 'gain' ? 'to keep gaining' : 'to maintain';
+    document.querySelector('#suggestLine').textContent =
+      'Suggestion ' + goalWord + ': ' + kcal.toLocaleString() + ' kcal';
+    document.querySelector('#suggestMeta').textContent =
+      'P' + p + ' · C' + c + ' · F' + f + ' — never applied automatically';
+    suggest.hidden = false;
+
+    if (!expWired) {
+      expWired = true;
+      document.querySelector('#applyTargets').addEventListener('click', () => {
+        if (!lastSuggestion || !window.PT.applyTargets) return;
+        const s = lastSuggestion;
+        if (confirm('Set your targets to ' + s.kcal.toLocaleString() + ' kcal · P' + s.p + ' C' + s.c + ' F' + s.f + '?')) {
+          window.PT.applyTargets(s).then(() => rebuild());
+        }
+      });
+    }
   }
 
   /* ---------- training grid + session counts ---------- */
@@ -408,25 +526,35 @@ const HistoryView = (() => {
 
     const set = (id, text) => { $('#' + id).textContent = text; };
 
+    const mealsLab = $('#statMeals').parentElement.querySelector('.lab');
     if (!denom) {
       set('statMeals', '—');
       set('statProtein', '—');
     } else {
       const mealVals = activeDays.map(x => mealsDone(x.rec)).filter(v => v != null);
-      set('statMeals', mealVals.length
-        ? (mealVals.reduce((a, v) => a + v, 0) / mealVals.length).toFixed(1) + '/5'
-        : '—');
+      const customDays = activeDays.filter(x => x.rec && x.rec.mode === 'custom');
+      if (mealVals.length >= customDays.length && mealVals.length) {
+        set('statMeals', (mealVals.reduce((a, v) => a + v, 0) / mealVals.length).toFixed(1) + '/5');
+        mealsLab.textContent = 'Avg meals / day · 7d';
+      } else if (customDays.length) {
+        const inR = customDays.filter(x => complianceOf(x.rec).done).length;
+        set('statMeals', inR + '/' + customDays.length);
+        mealsLab.textContent = 'Days in range · 7d';
+      } else {
+        set('statMeals', '—');
+      }
       const p = activeDays.reduce((a, x) => a + protein(x.rec), 0) / denom;
       set('statProtein', Math.round(p) + 'g');
     }
 
+    const unitLab = profileUnits() === 'kg' ? 'kg' : 'lb';
     const w1 = avg(last7.map(x => weightOf(x.rec)));
     const w0 = avg(prev7.map(weightOf));
     if (w1 != null && w0 != null) {
       const dw = Math.round((w1 - w0) * 10) / 10; // round first so -0.04 can't print "-0.0"
-      set('statWeight', (dw > 0 ? '+' : '') + dw.toFixed(1) + 'lb');
+      set('statWeight', (dw > 0 ? '+' : '') + dw.toFixed(1) + unitLab);
     } else if (w1 != null) {
-      set('statWeight', w1.toFixed(1) + 'lb');
+      set('statWeight', w1.toFixed(1) + unitLab);
     } else {
       set('statWeight', '—');
     }

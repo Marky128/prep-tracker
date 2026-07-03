@@ -159,6 +159,8 @@
       </div>
     </header>
 
+    <div class="week-strip" id="weekStrip" aria-label="This week"></div>
+
     <div class="tracker">
       <div class="tracker-head">
         <div class="t1">Today's Progress</div>
@@ -245,10 +247,25 @@
     <p class="note hist-empty" id="histEmpty" hidden>No days logged yet — check off your first meal on the Today tab.</p>
 
     <section class="block">
+      <h3>Expenditure</h3>
+      <div class="chart-card exp-card">
+        <div class="exp-main"><span class="exp-val" id="expVal">—</span><span class="exp-unit">kcal / day</span></div>
+        <p class="note" id="expNote">Log food and weigh-ins for 14 days and your estimated daily energy burn appears here.</p>
+        <div class="exp-suggest" id="expSuggest" hidden>
+          <div class="set-info">
+            <div class="set-name" id="suggestLine">—</div>
+            <div class="set-meta" id="suggestMeta">—</div>
+          </div>
+          <button class="btn btn-slim" id="applyTargets">Apply</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
       <h3>Compliance</h3>
       <div class="chart-card">
         <div class="chart-box"><canvas id="chartCompliance"></canvas></div>
-        <div class="chart-key"><span><i style="background:#2f74d0"></i>Meals done</span><span><i style="background:#eceae5"></i>7-day avg</span><span><i style="background:#5aa66a"></i>5/5 day</span></div>
+        <div class="chart-key"><span><i style="background:#2f74d0"></i>Logged</span><span><i style="background:#5aa66a"></i>Complete / in range</span><span><i style="background:#eceae5"></i>7-day avg</span></div>
       </div>
     </section>
 
@@ -264,7 +281,7 @@
       <h3>Bodyweight</h3>
       <div class="chart-card">
         <div class="chart-box"><canvas id="chartWeight"></canvas></div>
-        <div class="chart-key"><span><i style="background:#2f74d0"></i>Daily</span><span><i style="background:#5aa66a"></i>7-day average</span></div>
+        <div class="chart-key"><span><i style="background:#2f74d0"></i>Trend</span><span><i style="background:rgba(47,116,208,.35)"></i>Daily weigh-ins</span></div>
       </div>
     </section>
 
@@ -465,6 +482,7 @@
 <script src="js/food-db.js"></script>
 <script src="js/today-program.js"></script>
 <script src="js/today-custom.js"></script>
+<script src="js/dashboard.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

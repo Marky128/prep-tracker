@@ -159,6 +159,7 @@ const TodayProgram = (() => {
     state.targetsSnapshot = rec.targetsSnapshot;
     DB.putDay(rec).catch(err => console.warn('save failed', err));
     HistoryView.invalidate();
+    if (window.PT.dayChanged) window.PT.dayChanged();
   }
 
   /* ---------- rendering ---------- */

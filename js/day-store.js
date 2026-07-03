@@ -78,6 +78,7 @@ const DayStore = (() => {
     rec.updatedAt = new Date().toISOString();
     DB.putDay(JSON.parse(JSON.stringify(rec))).catch(err => console.warn('save failed', err));
     HistoryView.invalidate();
+    if (window.PT && window.PT.dayChanged) window.PT.dayChanged();
     emit();
   }
 

@@ -105,6 +105,39 @@ h1 span{color:var(--mute)}
 .page-head{padding:52px 0 8px}
 .page-head h1{font-size:clamp(38px,8vw,52px);margin-bottom:0}
 
+/* ---------- week strip ---------- */
+.week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:18px 0 16px}
+.ws-day{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:var(--iron);border:1px solid var(--line);border-radius:10px;
+  padding:7px 0 5px;cursor:pointer;min-height:80px;
+  -webkit-tap-highlight-color:transparent;transition:border-color .18s;
+}
+.ws-day.today{border-color:rgba(47,116,208,.65);background:linear-gradient(180deg,var(--red-soft),var(--iron))}
+.ws-day.future{opacity:.4;cursor:default}
+.ws-day:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.ws-lab{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--mute);letter-spacing:.1em}
+.ws-bars{display:flex;align-items:flex-end;gap:2px;height:44px}
+.ws-bar{display:block;width:5px;border-radius:2px;background:var(--red)}
+.ws-bar.in{background:var(--green)}
+.ws-bar.future{background:var(--steel)}
+.ws-num{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--mute);font-variant-numeric:tabular-nums}
+
+/* ---------- expenditure card ---------- */
+.exp-card{padding:18px}
+.exp-main{display:flex;align-items:baseline;gap:8px}
+.exp-val{
+  font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:34px;
+  font-variant-numeric:tabular-nums;
+}
+.exp-unit{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);letter-spacing:.08em;text-transform:uppercase}
+.exp-card .note{margin-top:8px}
+.exp-suggest{
+  display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:14px;
+  border-top:1px solid var(--line);
+}
+.exp-suggest .btn{margin-bottom:0}
+
 /* ---------- edit-a-past-day banner ---------- */
 .edit-banner{
   position:sticky;top:var(--sat);z-index:25;

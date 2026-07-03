@@ -202,7 +202,12 @@
     await DB.putSetting('profile', p).catch(() => {});
     updateSettingsUI();
     HistoryView.invalidate();
+    Dashboard.mount(p);
   }
+
+  /* the expenditure card's Apply button lands here */
+  window.PT.applyTargets = t =>
+    saveProfile(Object.assign({}, profile, { targets: t }));
 
   $('#editProfileBtn').addEventListener('click', () => {
     closeSheet();
@@ -325,6 +330,7 @@
     profile = p;
     window.PT.profile = p;
     updateSettingsUI();
+    Dashboard.mount(p);
     mountToday();
   }
 
