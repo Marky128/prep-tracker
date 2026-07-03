@@ -76,7 +76,12 @@ const HistoryView = (() => {
     return rec && typeof rec.workout === 'string' ? rec.workout : null;
   }
   function proteinTarget() {
-    return (window.PT && window.PT.TOTALS && window.PT.TOTALS.p) || 316;
+    const PT = window.PT || {};
+    // custom-mode users chart against their own protein target
+    if (PT.profile && !PT.profile.activeProgramId && PT.profile.targets) {
+      return PT.profile.targets.p || 316;
+    }
+    return (PT.TOTALS && PT.TOTALS.p) || 316;
   }
 
   function avg(vals) {
@@ -144,6 +149,8 @@ const HistoryView = (() => {
     const firstLogged = map.size ? [...map.keys()].sort()[0] : null;
 
     $('#histEmpty').hidden = map.size > 0;
+    const protH3 = document.querySelector('#tab-history .block h3 em');
+    if (protH3) protH3.textContent = '/ ' + proteinTarget() + 'g';
 
     const labels = dates.map(d =>
       range === 7

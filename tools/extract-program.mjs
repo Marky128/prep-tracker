@@ -9,6 +9,12 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 const html = readFileSync('index.html', 'utf8');
+if (!html.includes('<!-- MEAL 1 -->')) {
+  console.error('The hardcoded meal markup was removed in Phase 5 — the committed\n' +
+    'programs/ethan-prep.json is canonical now. Edit that file directly\n' +
+    '(and bump CACHE in sw.js) to change the program.');
+  process.exit(1);
+}
 const decode = s => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
 
 /* ---------- meals ---------- */

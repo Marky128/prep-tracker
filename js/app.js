@@ -1,43 +1,26 @@
-/* Boot (migration → profile → onboarding/app), tabs, program-mode Today,
-   settings sheet, mode switching, export/import.
-   The meal markup remains the source of truth for the program renderer
-   until Phase 5 makes it JSON-driven. */
+/* Boot (migration → profile → onboarding/app), tab bar, mode routing
+   between TodayProgram (JSON-driven) and TodayCustom, settings sheet,
+   export/import. Day rendering lives in the two Today modules. */
 (function () {
   'use strict';
 
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
-  const deepCopy = x => (typeof structuredClone === 'function' ? structuredClone(x) : JSON.parse(JSON.stringify(x)));
 
   function todayStr() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
-  /* ---------- static plan, read from the markup ---------- */
-  const mealEls = $$('#tab-today .meal');
-  const PLAN = mealEls.map(m => ({ p: +m.dataset.p, c: +m.dataset.c, f: +m.dataset.f }));
-  const TOTALS = PLAN.reduce((a, x) => ({ p: a.p + x.p, c: a.c + x.c, f: a.f + x.f }), { p: 0, c: 0, f: 0 });
-  window.PT = { PLAN, TOTALS, profile: null };
+  window.PT = { profile: null }; // PLAN/TOTALS filled by TodayProgram.loadProgram()
 
-  const chipGroups = mealEls.map(m => Array.from(m.querySelectorAll('.chips')));
-  const chipLabel = c => c.textContent.trim();
-  const DEFAULT_SWAPS = chipGroups.map(gs =>
-    gs.map(g => Array.from(g.querySelectorAll('.chip.active')).map(chipLabel))
-  );
+  let profile = null;
 
-  const habitEls = $$('.habit');
-  const HABITS = habitEls.map(el => el.dataset.habit);
+  function activeProgram() { return profile && profile.activeProgramId ? profile.activeProgramId : null; }
+  function unitLabel() { return Targets.unitLabel(profile ? profile.units : 'lb'); }
 
-  const workoutChips = $$('#workoutChips .chip');
-  const WORKOUT_IDS = workoutChips.map(c => c.dataset.workout);
-
-  const weightInput = $('#weightInput');
-  const weightStatus = $('#weightStatus');
-  const WEIGHT_HINT = weightStatus.textContent;
-
-  // header strings from the shipped markup — restored when the program
-  // view mounts after a stint in custom mode
+  /* header strings from the shipped markup — restored when the program
+     view mounts after a stint in custom mode */
   const PROGRAM_HEADER = {
     eyebrow: $('#tab-today header .eyebrow').textContent,
     h1: $('#tab-today h1').innerHTML,
@@ -55,148 +38,39 @@
     });
   }
 
-  let profile = null;
-  let state = null;
-
-  function activeProgram() { return profile && profile.activeProgramId ? profile.activeProgramId : null; }
-
-  /* ---------- state shape (program mode) ---------- */
-  function normalizeSwaps(sw) {
-    if (!Array.isArray(sw)) return null;
-    return chipGroups.map((gs, mi) =>
-      gs.map((g, gi) => {
-        const v = sw[mi] && sw[mi][gi];
-        return Array.isArray(v) ? v.slice() : DEFAULT_SWAPS[mi][gi].slice();
-      })
-    );
+  /* ---------- mode routing ---------- */
+  function hasEntries(rec) {
+    if (!rec) return false;
+    if (rec.mode === 'custom') return (rec.items || []).length > 0;
+    return (rec.meals || []).some(Boolean);
   }
 
-  function freshState(date, lastSwaps) {
-    return {
-      date,
-      meals: PLAN.map(() => false),
-      swaps: normalizeSwaps(lastSwaps) || deepCopy(DEFAULT_SWAPS),
-      habits: Object.fromEntries(HABITS.map(h => [h, false])),
-      weight: null,
-      workout: null,
-      targetsSnapshot: null,
-    };
+  /* pinned semantics: a day with entries keeps its recorded mode; anything
+     else follows the active mode */
+  async function decideTodayMode() {
+    const rec = await DB.getDay(todayStr()).catch(() => null);
+    if (rec && rec.mode && hasEntries(rec)) return rec.mode;
+    return activeProgram() ? 'program' : 'custom';
   }
 
-  function fromRecord(date, rec) {
-    return {
-      date,
-      meals: PLAN.map((_, i) => !!(rec.meals && rec.meals[i])),
-      swaps: normalizeSwaps(rec.swaps) || deepCopy(DEFAULT_SWAPS),
-      habits: Object.fromEntries(HABITS.map(h => [h, !!(rec.habits && rec.habits[h])])),
-      weight: typeof rec.weight === 'number' ? rec.weight : null,
-      workout: WORKOUT_IDS.includes(rec.workout) ? rec.workout : null,
-      targetsSnapshot: rec.targetsSnapshot || null,
-    };
-  }
-
-  function computeMacros() {
-    const m = state.meals.reduce(
-      (a, done, i) => (done ? { p: a.p + PLAN[i].p, c: a.c + PLAN[i].c, f: a.f + PLAN[i].f } : a),
-      { p: 0, c: 0, f: 0 }
-    );
-    m.kcal = Targets.kcalFromMacros(m.p, m.c, m.f);
-    return m;
-  }
-
-  function persist() {
-    const rec = Object.assign(deepCopy(state), {
-      schema: 2,
-      mode: 'program',
-      programId: 'ethan-prep',
-      macros: computeMacros(),
-      targetsSnapshot: state.targetsSnapshot || deepCopy(Migrate.ETHAN_SNAPSHOT),
-      weightUnit: Targets.recordUnitFor(profile ? profile.units : 'lb'),
-      updatedAt: new Date().toISOString(),
-    });
-    state.targetsSnapshot = rec.targetsSnapshot;
-    DB.putDay(rec).catch(err => console.warn('save failed', err));
-    HistoryView.invalidate();
-  }
-
-  /* ---------- rendering ---------- */
-  const barP = $('#barP'), barC = $('#barC'), barF = $('#barF');
-  const labP = $('#labP'), labC = $('#labC'), labF = $('#labF');
-  const mealCount = $('#mealCount');
-  const trackerEl = $('.tracker');
-
-  function refreshTracker() {
-    const done = computeMacros();
-    const n = state.meals.filter(Boolean).length;
-    barP.style.width = Math.min(100, (done.p / TOTALS.p) * 100) + '%';
-    barC.style.width = Math.min(100, (done.c / TOTALS.c) * 100) + '%';
-    barF.style.width = Math.min(100, (done.f / TOTALS.f) * 100) + '%';
-    labP.textContent = done.p + ' / ' + TOTALS.p + 'g';
-    labC.textContent = done.c + ' / ' + TOTALS.c + 'g';
-    labF.textContent = done.f + ' / ' + TOTALS.f + 'g';
-    mealCount.textContent = n;
-    trackerEl.classList.toggle('complete', n === PLAN.length);
-  }
-
-  function unitLabel() { return Targets.unitLabel(profile ? profile.units : 'lb'); }
-
-  function renderWeight() {
-    weightInput.value = state.weight == null ? '' : String(state.weight);
-    weightStatus.textContent = state.weight == null ? WEIGHT_HINT : 'logged ' + state.weight.toFixed(1) + ' ' + unitLabel() + ' today';
-    $('.weight-unit').textContent = unitLabel();
-  }
-
-  function renderWorkout() {
-    workoutChips.forEach(c => c.classList.toggle('active', c.dataset.workout === state.workout));
-  }
-
-  function renderDate() {
-    $('#dateLabel').textContent = new Date()
-      .toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
-      .toUpperCase();
-  }
-
-  function render() {
-    mealEls.forEach((m, i) => m.classList.toggle('done', !!state.meals[i]));
-
-    chipGroups.forEach((gs, mi) =>
-      gs.forEach((g, gi) => {
-        const selected = state.swaps[mi][gi];
-        const chips = Array.from(g.querySelectorAll('.chip'));
-        chips.forEach(c => c.classList.toggle('active', selected.includes(chipLabel(c))));
-        if (g.hasAttribute('data-group') && !chips.some(c => c.classList.contains('active'))) {
-          state.swaps[mi][gi] = DEFAULT_SWAPS[mi][gi].slice();
-          chips.forEach(c => c.classList.toggle('active', state.swaps[mi][gi].includes(chipLabel(c))));
-        }
-      })
-    );
-
-    habitEls.forEach(el => el.classList.toggle('done', !!state.habits[el.dataset.habit]));
-    renderWorkout();
-    renderWeight();
-    refreshTracker();
-    renderDate();
-  }
-
-  /* ---------- day loading & midnight rollover ---------- */
-  async function loadDay(date) {
-    const rec = await DB.getDay(date).catch(() => null);
-    if (rec) {
-      state = fromRecord(date, rec);
+  async function mountToday() {
+    const mode = await decideTodayMode();
+    if (mode === 'custom') {
+      TodayProgram.unmount();
+      await TodayCustom.mount(profile);
     } else {
-      const lastSwaps = await DB.getSetting('lastSwaps').catch(() => null);
-      state = freshState(date, lastSwaps);
+      TodayCustom.unmount();
+      restoreProgramHeader();
+      await TodayProgram.mount(profile);
     }
-    render();
   }
 
+  /* ---------- midnight rollover ---------- */
   async function checkRollover() {
     const t = todayStr();
-    const rolled = TodayCustom.isActive()
-      ? DayStore.date() !== t
-      : state && state.date !== t;
-    if (rolled) {
-      await mountToday(); // yesterday is already saved; new day may change mode
+    const cur = TodayCustom.isActive() ? DayStore.date() : TodayProgram.currentDate();
+    if (profile && cur && cur !== t) {
+      await mountToday(); // yesterday is already saved; a new day may change mode
       if (tabEls.history.classList.contains('active')) HistoryView.show();
     }
   }
@@ -205,79 +79,22 @@
   window.addEventListener('pageshow', checkRollover);
   setInterval(checkRollover, 30000);
 
-  /* ---------- meal cards ---------- */
-  mealEls.forEach((m, i) => {
-    const top = m.querySelector('.meal-top');
-    const check = m.querySelector('.check');
-
-    top.addEventListener('click', e => {
-      if (e.target.closest('.check')) return;
-      const open = m.classList.toggle('open');
-      top.setAttribute('aria-expanded', open);
-    });
-    top.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); top.click(); }
-    });
-    check.addEventListener('click', e => {
-      e.stopPropagation();
-      state.meals[i] = !state.meals[i];
-      m.classList.toggle('done', state.meals[i]);
-      refreshTracker();
-      persist();
-    });
-  });
-
-  /* ---------- swap chips ---------- */
-  chipGroups.forEach((gs, mi) =>
-    gs.forEach((g, gi) => {
-      g.addEventListener('click', e => {
-        const chip = e.target.closest('.chip');
-        if (!chip) return;
-        if (g.hasAttribute('data-multi')) {
-          chip.classList.toggle('active');
-          state.swaps[mi][gi] = Array.from(g.querySelectorAll('.chip.active')).map(chipLabel);
-        } else {
-          g.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-          state.swaps[mi][gi] = [chipLabel(chip)];
-        }
-        persist();
-        DB.putSetting('lastSwaps', deepCopy(state.swaps)).catch(() => {});
-      });
-    })
-  );
-
-  /* ---------- habits ---------- */
-  habitEls.forEach(el => {
-    el.addEventListener('click', () => {
-      const h = el.dataset.habit;
-      state.habits[h] = !state.habits[h];
-      el.classList.toggle('done', state.habits[h]);
-      persist();
-    });
-  });
-
-  /* ---------- training (weight/training are shared across modes) ---------- */
-  workoutChips.forEach(chip => {
+  /* ---------- shared controls: training + bodyweight ---------- */
+  $$('#workoutChips .chip').forEach(chip => {
     chip.addEventListener('click', () => {
       const id = chip.dataset.workout;
-      if (TodayCustom.isActive()) { TodayCustom.setWorkout(id); return; }
-      state.workout = state.workout === id ? null : id; // re-tap deselects
-      renderWorkout();
-      persist();
+      if (TodayCustom.isActive()) TodayCustom.setWorkout(id);
+      else TodayProgram.setWorkout(id);
     });
   });
 
-  /* ---------- bodyweight ---------- */
-  weightInput.addEventListener('change', () => {
-    const v = parseFloat(weightInput.value.replace(',', '.'));
+  $('#weightInput').addEventListener('change', () => {
+    const v = parseFloat($('#weightInput').value.replace(',', '.'));
     const kg = profile && profile.units === 'kg';
     const lo = kg ? 25 : 50, hi = kg ? 320 : 700;
     const w = Number.isFinite(v) && v >= lo && v <= hi ? Math.round(v * 10) / 10 : null;
-    if (TodayCustom.isActive()) { TodayCustom.setWeight(w); return; }
-    state.weight = w;
-    renderWeight();
-    persist();
+    if (TodayCustom.isActive()) TodayCustom.setWeight(w);
+    else TodayProgram.setWeight(w);
   });
 
   /* ---------- tabs ---------- */
@@ -362,31 +179,6 @@
     HistoryView.invalidate();
   }
 
-  function hasEntries(rec) {
-    if (!rec) return false;
-    if (rec.mode === 'custom') return (rec.items || []).length > 0;
-    return (rec.meals || []).some(Boolean);
-  }
-
-  /* pinned semantics: a day with entries keeps its recorded mode; anything
-     else follows the active mode */
-  async function decideTodayMode() {
-    const rec = await DB.getDay(todayStr()).catch(() => null);
-    if (rec && rec.mode && hasEntries(rec)) return rec.mode;
-    return activeProgram() ? 'program' : 'custom';
-  }
-
-  async function mountToday() {
-    const mode = await decideTodayMode();
-    if (mode === 'custom') {
-      await TodayCustom.mount(profile);
-    } else {
-      TodayCustom.unmount();
-      restoreProgramHeader();
-      await loadDay(todayStr());
-    }
-  }
-
   $('#editProfileBtn').addEventListener('click', () => {
     closeSheet();
     Onboarding.show(profile, p => { saveProfile(p).then(mountToday); }, 1);
@@ -461,8 +253,9 @@
         const p = await DB.getSetting('profile');
         if (p) await saveProfile(p);
       }
+      Foods.invalidate();
       HistoryView.invalidate();
-      await loadDay(todayStr());
+      await mountToday();
       updateStorageInfo();
       alert('Imported ' + n + ' day(s).');
     } catch (err) {
@@ -519,6 +312,8 @@
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().catch(() => {});
     }
+    try { await TodayProgram.loadProgram(); } // sets PT.PLAN/TOTALS for history
+    catch (err) { console.warn('program load failed', err); }
     let p = null;
     try { p = await bootMigrate(); }
     catch (err) { console.warn('boot migration failed', err); }
