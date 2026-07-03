@@ -1,78 +1,84 @@
-# Prep Tracker
+# Intake
 
-An installable, fully offline PWA for daily contest-prep tracking: 5 meals with
-swap options, macro progress bars, a daily habit checklist, bodyweight logging
-(lbs), a daily training log (pull / push / legs / arms split), and
-weekly/monthly progress charts. Vanilla HTML/CSS/JS — no build step, no
-accounts, no network calls after first load. All data stays on-device.
+A polished, offline-first macro tracker you install from a URL. Set your own
+calorie/macro targets (or estimate them), log food from a bundled Canadian
+food database, online packaged-food search, or quick entry — and watch
+adherence-neutral trends: ranges instead of exact numbers, trend weight
+instead of daily noise, an expenditure estimate once there's enough data.
+
+No accounts, no server, no analytics. Everything lives in your device's
+browser storage. Vanilla HTML/CSS/JS, no build step.
+
+**Two modes**
+- **Custom** (default): your targets, your food log (Breakfast / Lunch /
+  Dinner / Snacks), habits, bodyweight, training.
+- **Ethan's Plan**: a specific contest-prep program — 5 fixed meals with swap
+  options at ~2,700 kcal — tracked by simply checking meals off. Switch modes
+  anytime in Settings; every day renders in the mode it was logged in.
+
+## Share the beta
+
+Send someone the URL. On iPhone: open it in **Safari → Share → Add to Home
+Screen → Add**. That's the whole install. Each device keeps its own private
+data — nothing is shared or uploaded, ever. First launch runs a one-minute
+setup (name, targets, mode).
 
 ## Structure
 
 ```
-index.html          app shell — Today / History / Plan tabs
-styles.css          design system + self-hosted fonts
-js/db.js            IndexedDB promise wrapper (localStorage fallback)
-js/app.js           today-tab state, midnight rollover, settings sheet
-js/history.js       Chart.js charts, habit heatmap, streaks, stat cards
-vendor/             Chart.js 4.5.0 (local copy, precached)
-fonts/              Barlow Condensed · IBM Plex Mono · Inter (woff2)
-icons/              app icons (regenerate with tools/make_icons.py)
-manifest.json       PWA manifest
-sw.js               service worker — precaches everything for offline use
-meal-plan.html      the original single-file page this app was built from
+index.html               app shell: tabs, onboarding, sheets
+styles.css               design system
+js/
+  db.js                  IndexedDB (days/settings/foods) + localStorage fallback
+  migrate.js             v1→v2 record transform (additive, per-record flag)
+  targets.js             ranges, 4/4/9, Mifflin-St Jeor, trend EWMA, TDEE
+  day-store.js           owner of the day record being viewed/edited
+  onboarding.js          first-launch stepper / profile editor
+  today-program.js       Ethan's Plan renderer (data-driven from JSON)
+  today-custom.js        custom log, add-food sheet, My Foods
+  foods.js               personal food library
+  food-db.js             bundled offline search (fuzzy, instant)
+  food-online.js         Open Food Facts search (Canada-first)
+  dashboard.js           Mon–Sun week strip
+  history.js             charts, heatmaps, streaks, expenditure card
+programs/ethan-prep.json the program, extracted verbatim from the original app
+data/foods-cnf.json      ~2,600 curated foods (Canadian Nutrient File)
+tools/                   build/extract scripts, migration test page, unit tests
+sw.js                    service worker — precaches everything for offline
 ```
 
-## Run locally
-
-Service workers need HTTP (not `file://`):
+## Development
 
 ```bash
-cd "Prep Tracker"
-python3 -m http.server 8080
+python3 -m http.server 8080     # service workers need http, not file://
 ```
 
-Open http://localhost:8080. To test offline: load the page once, then stop the
-server and reload — it should still work.
+Tests (need node): `node tools/tests/<name>.test.mjs` — migrate, targets,
+food-db, parity, wiring. Rebuild the food database with
+`python3 tools/build-food-db.py`. The one-time v1 migration can be dry-run
+against a copy of real data at `tools/migration-test.html`.
 
-## Deploy to GitHub Pages
+**Ship a change:** edit files → **bump `CACHE` in `sw.js`** → commit → push.
+Installed apps pick the new version up on the second launch after deploy.
 
-```bash
-git init
-git add -A
-git commit -m "Prep Tracker PWA"
-gh repo create prep-tracker --public --source=. --push
-# or: create an empty repo on github.com, then
-# git remote add origin https://github.com/<you>/prep-tracker.git
-# git push -u origin main
-```
+## Deploy (GitHub Pages)
 
-Then on GitHub: **Settings → Pages → Source: Deploy from a branch →
-Branch: `main` / `(root)` → Save.** After a minute the app is live at
-`https://<you>.github.io/prep-tracker/`. All paths are relative, so it works
-from the repo subpath without configuration.
+Settings → Pages → Deploy from branch `main` / root. All paths are relative;
+works from any repo subpath.
 
-## Install on iPhone
+## Data & attribution
 
-1. Open the GitHub Pages URL in **Safari**.
-2. Tap the **Share** button → **Add to Home Screen** → **Add**.
-3. Launch **Prep Tracker** from the home screen — it runs standalone,
-   fullscreen, and works with no connection.
+- Bundled food data: [Canadian Nutrient File](https://food-nutrition.canada.ca/cnf-fce/)
+  © Health Canada, Open Government Licence – Canada.
+- Online search: [Open Food Facts](https://world.openfoodfacts.org) (ODbL).
+- Backups: Settings → Export writes a JSON of everything (days, foods,
+  profile); Import restores it — old-format backups from any previous app
+  version import cleanly.
 
-Tips:
-- Data lives in IndexedDB on the device. The app requests persistent storage,
-  but **export a JSON backup regularly** (gear icon → Export data) — iOS can
-  evict website data if the app is unused for weeks.
-- Import restores a backup on a new phone or after a reinstall.
+## Path to the App Store (not implemented)
 
-## Updating the app
-
-Edit files, **bump `CACHE` in `sw.js`** (e.g. `prep-tracker-v2`), commit and
-push. Installed apps pick up the new version on the second launch after the
-deploy.
-
-## Regenerating icons
-
-```bash
-pip install pillow
-python3 tools/make_icons.py
-```
+This PWA can be wrapped with [Capacitor](https://capacitorjs.com) for a
+native iOS build: the same HTML/JS ships inside a WKWebView shell, IndexedDB
+data can be migrated via an import screen, and the service worker is replaced
+by bundled assets. That's the intended route if this beta graduates —
+no rewrite required.

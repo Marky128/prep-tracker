@@ -565,6 +565,19 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);
   font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);
   display:flex;justify-content:space-between;letter-spacing:.06em}
 
+/* ---------- pressed states (App-Store-grade feedback) ---------- */
+.chip:active,.btn:active,.mode-card:active,.habit:active,
+.ws-day:not(.future):active,.add-row:active,.icon-btn:active,
+.food-row-main:active,.item:active,.tabbar button:active{
+  transform:scale(.97);
+}
+.meal-top:active .meal-title{opacity:.75}
+.check:active{transform:scale(.9)}
+.chip,.btn,.mode-card,.habit,.ws-day,.add-row,.icon-btn,.food-row-main,.item,.check,.tabbar button{
+  transition-property:transform,color,border-color,background-color,opacity;
+  transition-duration:.15s;
+}
+
 @media (prefers-reduced-motion: reduce){
   *{transition:none!important;animation:none!important}
   html{scroll-behavior:auto}

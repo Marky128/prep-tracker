@@ -1,7 +1,7 @@
 {
-  "name": "Prep Tracker",
-  "short_name": "Prep",
-  "description": "Contest prep daily meal, habit and bodyweight tracker",
+  "name": "Intake",
+  "short_name": "Intake",
+  "description": "Simple offline macro tracker — your targets, your food, your data on your device",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

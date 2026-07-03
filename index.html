@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Prep Tracker</title>
+<title>Intake — macro tracker</title>
 <meta name="theme-color" content="#16171a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Prep Tracker">
+<meta name="apple-mobile-web-app-title" content="Intake">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -227,7 +227,7 @@
   <!-- ======================= HISTORY ======================= -->
   <main id="tab-history" class="tab">
     <div class="page-head">
-      <div class="eyebrow">Contest Prep · Progress</div>
+      <div class="eyebrow">Progress · Trends</div>
       <h1>History</h1>
     </div>
 
@@ -244,7 +244,7 @@
       <div class="target"><div class="val" id="statStreak">—</div><div class="lab">Best streak</div></div>
     </div>
 
-    <p class="note hist-empty" id="histEmpty" hidden>No days logged yet — check off your first meal on the Today tab.</p>
+    <p class="note hist-empty" id="histEmpty" hidden>No days logged yet — your first logged day on the Today tab starts your history.</p>
 
     <section class="block">
       <h3>Expenditure</h3>
@@ -305,7 +305,7 @@
   <!-- ======================= PLAN ======================= -->
   <main id="tab-plan" class="tab">
     <div class="page-head">
-      <div class="eyebrow">Contest Prep · Reference</div>
+      <div class="eyebrow">Reference</div>
       <h1>Plan</h1>
     </div>
 
@@ -398,7 +398,8 @@
   </button>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
   <div class="meta" id="storageInfo">—</div>
-  <div class="meta">All data stays on this device. Export regularly as a backup.<br>Built with Claude Code.</div>
+  <div class="meta">All data stays on this device. Export regularly as a backup.<br>
+  Intake · built with Claude Code · food data: Canadian Nutrient File © Health Canada &amp; Open Food Facts.</div>
 </div>
 
 <!-- ======================= ADD FOOD SHEET ======================= -->
