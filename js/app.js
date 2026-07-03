@@ -1,6 +1,7 @@
-/* Today tab state, persistence, midnight rollover, tabs and settings sheet.
-   The meal markup is the source of truth for macros (data-p/c/f) and for
-   the default swap selections (.chip.active in the shipped HTML). */
+/* Boot (migration → profile → onboarding/app), tabs, program-mode Today,
+   settings sheet, mode switching, export/import.
+   The meal markup remains the source of truth for the program renderer
+   until Phase 5 makes it JSON-driven. */
 (function () {
   'use strict';
 
@@ -17,7 +18,7 @@
   const mealEls = $$('#tab-today .meal');
   const PLAN = mealEls.map(m => ({ p: +m.dataset.p, c: +m.dataset.c, f: +m.dataset.f }));
   const TOTALS = PLAN.reduce((a, x) => ({ p: a.p + x.p, c: a.c + x.c, f: a.f + x.f }), { p: 0, c: 0, f: 0 });
-  window.PT = { PLAN, TOTALS };
+  window.PT = { PLAN, TOTALS, profile: null };
 
   const chipGroups = mealEls.map(m => Array.from(m.querySelectorAll('.chips')));
   const chipLabel = c => c.textContent.trim();
@@ -35,9 +36,12 @@
   const weightStatus = $('#weightStatus');
   const WEIGHT_HINT = weightStatus.textContent;
 
+  let profile = null;
   let state = null;
 
-  /* ---------- state shape ---------- */
+  function activeProgram() { return profile && profile.activeProgramId ? profile.activeProgramId : null; }
+
+  /* ---------- state shape (program mode) ---------- */
   function normalizeSwaps(sw) {
     if (!Array.isArray(sw)) return null;
     return chipGroups.map((gs, mi) =>
@@ -56,6 +60,7 @@
       habits: Object.fromEntries(HABITS.map(h => [h, false])),
       weight: null,
       workout: null,
+      targetsSnapshot: null,
     };
   }
 
@@ -67,22 +72,30 @@
       habits: Object.fromEntries(HABITS.map(h => [h, !!(rec.habits && rec.habits[h])])),
       weight: typeof rec.weight === 'number' ? rec.weight : null,
       workout: WORKOUT_IDS.includes(rec.workout) ? rec.workout : null,
+      targetsSnapshot: rec.targetsSnapshot || null,
     };
   }
 
   function computeMacros() {
-    return state.meals.reduce(
+    const m = state.meals.reduce(
       (a, done, i) => (done ? { p: a.p + PLAN[i].p, c: a.c + PLAN[i].c, f: a.f + PLAN[i].f } : a),
       { p: 0, c: 0, f: 0 }
     );
+    m.kcal = Targets.kcalFromMacros(m.p, m.c, m.f);
+    return m;
   }
 
   function persist() {
     const rec = Object.assign(deepCopy(state), {
+      schema: 2,
+      mode: 'program',
+      programId: 'ethan-prep',
       macros: computeMacros(),
-      weightUnit: 'lbs',
+      targetsSnapshot: state.targetsSnapshot || deepCopy(Migrate.ETHAN_SNAPSHOT),
+      weightUnit: Targets.recordUnitFor(profile ? profile.units : 'lb'),
       updatedAt: new Date().toISOString(),
     });
+    state.targetsSnapshot = rec.targetsSnapshot;
     DB.putDay(rec).catch(err => console.warn('save failed', err));
     HistoryView.invalidate();
   }
@@ -106,9 +119,12 @@
     trackerEl.classList.toggle('complete', n === PLAN.length);
   }
 
+  function unitLabel() { return Targets.unitLabel(profile ? profile.units : 'lb'); }
+
   function renderWeight() {
     weightInput.value = state.weight == null ? '' : String(state.weight);
-    weightStatus.textContent = state.weight == null ? WEIGHT_HINT : 'logged ' + state.weight.toFixed(1) + ' lbs today';
+    weightStatus.textContent = state.weight == null ? WEIGHT_HINT : 'logged ' + state.weight.toFixed(1) + ' ' + unitLabel() + ' today';
+    $('.weight-unit').textContent = unitLabel();
   }
 
   function renderWorkout() {
@@ -129,7 +145,6 @@
         const selected = state.swaps[mi][gi];
         const chips = Array.from(g.querySelectorAll('.chip'));
         chips.forEach(c => c.classList.toggle('active', selected.includes(chipLabel(c))));
-        // a single-select group must always have a selection
         if (g.hasAttribute('data-group') && !chips.some(c => c.classList.contains('active'))) {
           state.swaps[mi][gi] = DEFAULT_SWAPS[mi][gi].slice();
           chips.forEach(c => c.classList.toggle('active', state.swaps[mi][gi].includes(chipLabel(c))));
@@ -233,7 +248,9 @@
   /* ---------- bodyweight ---------- */
   weightInput.addEventListener('change', () => {
     const v = parseFloat(weightInput.value.replace(',', '.'));
-    state.weight = Number.isFinite(v) && v >= 50 && v <= 700 ? Math.round(v * 10) / 10 : null;
+    const kg = profile && profile.units === 'kg';
+    const lo = kg ? 25 : 50, hi = kg ? 320 : 700;
+    state.weight = Number.isFinite(v) && v >= lo && v <= hi ? Math.round(v * 10) / 10 : null;
     renderWeight();
     persist();
   });
@@ -256,61 +273,126 @@
   const sheet = $('#sheet');
   const backdrop = $('#sheetBackdrop');
 
+  function fmtTargets(t) {
+    return t.kcal.toLocaleString() + ' kcal · P' + t.p + ' · C' + t.c + ' · F' + t.f;
+  }
+
+  function updateSettingsUI() {
+    if (!profile) return;
+    $('#profileSummary').textContent = (profile.name || 'You') + ' · ' + unitLabel();
+    $('#targetsSummary').textContent = 'Your targets: ' + fmtTargets(profile.targets);
+    $('#modeSummary').textContent = activeProgram() ? "Ethan's Prep Plan" : 'Custom — your own food & targets';
+    $('#modeToggleBtn').textContent = activeProgram() ? 'Use Custom' : "Use Ethan's Plan";
+    $('#toleranceInput').value = profile.tolerancePct == null ? 6 : profile.tolerancePct;
+  }
+
   async function updateStorageInfo() {
     const el = $('#storageInfo');
     try {
       const days = await DB.getAllDays();
+      const foods = await DB.getAllFoods();
       let persisted = false;
       if (navigator.storage && navigator.storage.persisted) {
         persisted = await navigator.storage.persisted().catch(() => false);
       }
       el.textContent =
-        days.length + ' day' + (days.length === 1 ? '' : 's') + ' logged · ' +
-        (DB.usingFallback() ? 'localStorage' : 'IndexedDB') + ' · ' +
-        'persistent: ' + (persisted ? 'yes' : 'no');
+        days.length + ' day' + (days.length === 1 ? '' : 's') + ' · ' +
+        foods.length + ' saved food' + (foods.length === 1 ? '' : 's') + ' · ' +
+        (DB.usingFallback() ? 'localStorage' : 'IndexedDB') + ' · persistent: ' + (persisted ? 'yes' : 'no');
     } catch (e) {
       el.textContent = 'storage status unavailable';
+    }
+  }
+
+  async function updateBackupRow() {
+    const backup = await DB.getSetting('backupV1').catch(() => null);
+    $('#backupRow').hidden = !backup;
+    if (backup) {
+      const n = Array.isArray(backup.days) ? backup.days.length : 0;
+      $('#backupMeta').textContent = n + ' days · taken ' + String(backup.createdAt || '').slice(0, 10);
     }
   }
 
   function openSheet() {
     sheet.classList.add('open');
     backdrop.classList.add('open');
+    updateSettingsUI();
     updateStorageInfo();
+    updateBackupRow();
   }
   function closeSheet() {
     sheet.classList.remove('open');
     backdrop.classList.remove('open');
+    $('#modeNote').hidden = true;
   }
   $('#settingsBtn').addEventListener('click', openSheet);
   $('#sheetClose').addEventListener('click', closeSheet);
   backdrop.addEventListener('click', closeSheet);
 
-  /* ---------- export / import ---------- */
-  $('#exportBtn').addEventListener('click', async () => {
-    try {
-      const json = JSON.stringify(await DB.exportAll(), null, 2);
-      const name = 'prep-tracker-' + todayStr() + '.json';
-      const file = new File([json], name, { type: 'application/json' });
-      // share sheet saves to Files on iOS; fall back to a download link
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: 'Prep Tracker export' });
-          return;
-        } catch (err) {
-          if (err.name === 'AbortError') return;
-        }
-      }
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    } catch (err) {
-      alert('Export failed: ' + err.message);
+  async function saveProfile(p) {
+    profile = p;
+    window.PT.profile = p;
+    await DB.putSetting('profile', p).catch(() => {});
+    document.body.classList.toggle('mode-custom', !activeProgram());
+    $('#customToday').hidden = !!activeProgram();
+    updateSettingsUI();
+    HistoryView.invalidate();
+  }
+
+  $('#editProfileBtn').addEventListener('click', () => {
+    closeSheet();
+    Onboarding.show(profile, p => { saveProfile(p).then(() => loadDay(todayStr())); }, 1);
+  });
+
+  $('#modeToggleBtn').addEventListener('click', async () => {
+    const next = Object.assign({}, profile, { activeProgramId: activeProgram() ? null : 'ethan-prep' });
+    await saveProfile(next);
+    const todayRec = await DB.getDay(todayStr()).catch(() => null);
+    const hasEntries = todayRec && ((todayRec.meals || []).some(Boolean) || (todayRec.items || []).length);
+    const note = $('#modeNote');
+    if (hasEntries) {
+      const was = todayRec.mode === 'custom' ? 'Custom' : "Ethan's Plan";
+      note.textContent = 'Today was logged in ' + was + ' — your new mode starts with the next day you log.';
+      note.hidden = false;
+    } else {
+      note.textContent = 'Switched. Today will track in ' + (activeProgram() ? "Ethan's Plan" : 'Custom') + ' mode.';
+      note.hidden = false;
+      loadDay(todayStr());
     }
+  });
+
+  $('#toleranceInput').addEventListener('change', () => {
+    const v = parseInt($('#toleranceInput').value, 10);
+    const tol = Number.isFinite(v) ? Math.min(20, Math.max(1, v)) : 6;
+    $('#toleranceInput').value = tol;
+    saveProfile(Object.assign({}, profile, { tolerancePct: tol }));
+  });
+
+  /* ---------- export / import / backup download ---------- */
+  async function downloadJSON(obj, name) {
+    const json = JSON.stringify(obj, null, 2);
+    const file = new File([json], name, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); return; }
+      catch (err) { if (err.name === 'AbortError') return; }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  }
+
+  $('#exportBtn').addEventListener('click', async () => {
+    try { await downloadJSON(await DB.exportAll(), 'macro-tracker-' + todayStr() + '.json'); }
+    catch (err) { alert('Export failed: ' + err.message); }
+  });
+
+  $('#backupDownloadBtn').addEventListener('click', async () => {
+    const backup = await DB.getSetting('backupV1').catch(() => null);
+    if (backup) downloadJSON(backup, 'pre-migration-backup.json');
   });
 
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
@@ -322,7 +404,16 @@
       const data = JSON.parse(await f.text());
       const count = Array.isArray(data.days) ? data.days.length : 0;
       if (!confirm('Import ' + count + ' day(s)? Existing days with the same date will be overwritten.')) return;
-      const n = await DB.importAll(data);
+      let profileMode = 'skip';
+      if (data.settings && data.settings.profile) {
+        if (!profile) profileMode = 'replace';
+        else if (confirm('This backup includes profile & targets. Replace yours with it?')) profileMode = 'replace';
+      }
+      const n = await DB.importAll(data, { profile: profileMode });
+      if (profileMode === 'replace') {
+        const p = await DB.getSetting('profile');
+        if (p) await saveProfile(p);
+      }
       HistoryView.invalidate();
       await loadDay(todayStr());
       updateStorageInfo();
@@ -332,38 +423,66 @@
     }
   });
 
-  /* ---------- kg → lbs migration (v1 stored kg) ----------
-     Runs every boot with no fast-path setting: the per-record flag keeps it
-     idempotent, and rescanning converges kg records written late by a stale
-     v1 client or a session that ran on the localStorage fallback. */
-  async function migrateWeightUnit() {
-    try {
-      let changed = false;
-      for (const d of await DB.getAllDays()) {
-        if (typeof d.weight === 'number' && d.weightUnit !== 'lbs') {
-          d.weight = Math.round(d.weight * 2.20462 * 10) / 10;
-          d.weightUnit = 'lbs';
-          await DB.putDay(d);
-          changed = true;
+  /* ---------- boot: migrate → profile → onboarding or app ---------- */
+  async function bootMigrate() {
+    const days = await DB.getAllDays();
+    const unmigrated = days.filter(d => !(d.schema >= 2));
+    if (unmigrated.length) {
+      // write-once rollback artifact BEFORE the first transforming write
+      const existing = await DB.getSetting('backupV1').catch(() => null);
+      if (!existing) {
+        await DB.putSetting('backupV1', {
+          app: 'prep-tracker', version: 1,
+          createdAt: new Date().toISOString(),
+          days,
+          settings: { lastSwaps: await DB.getSetting('lastSwaps').catch(() => null) },
+        }).catch(() => {});
+      }
+      for (const d of unmigrated) {
+        try {
+          const m = Migrate.migrateDay(d);
+          if (m) await DB.putDay(m);
+        } catch (err) {
+          console.warn('migration skipped', d.date, err); // record left as-is; readers tolerate it
         }
       }
-      if (changed) {
-        HistoryView.invalidate();
-        if (tabEls.history.classList.contains('active')) HistoryView.show();
-      }
-    } catch (e) {
-      console.warn('weight unit migration failed', e);
+      HistoryView.invalidate();
     }
+    let p = await DB.getSetting('profile').catch(() => null);
+    if (!p && days.length) {
+      p = Migrate.legacyProfile(); // existing install = Ethan; skips onboarding
+      await DB.putSetting('profile', p).catch(() => {});
+    }
+    return p;
   }
 
-  /* ---------- boot ---------- */
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
+  function startApp(p) {
+    profile = p;
+    window.PT.profile = p;
+    document.body.classList.toggle('mode-custom', !activeProgram());
+    $('#customToday').hidden = !!activeProgram();
+    updateSettingsUI();
+    loadDay(todayStr());
   }
-  if (navigator.storage && navigator.storage.persist) {
-    navigator.storage.persist().catch(() => {});
+
+  async function boot() {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(() => {});
+    }
+    let p = null;
+    try { p = await bootMigrate(); }
+    catch (err) { console.warn('boot migration failed', err); }
+    if (!p) {
+      Onboarding.show(null, np => { saveProfile(np).then(() => startApp(np)); });
+      return;
+    }
+    startApp(p);
   }
-  migrateWeightUnit().then(() => loadDay(todayStr()));
+
+  boot();
 })();

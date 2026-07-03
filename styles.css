@@ -309,6 +309,94 @@ td:first-child{font-weight:500}
 .streaks .pill.best{border-color:rgba(47,116,208,.55)}
 .hist-empty{margin:26px 0 6px}
 
+/* ---------- onboarding ---------- */
+.onb{
+  position:fixed;inset:0;z-index:60;background:var(--ink);
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:calc(40px + var(--sat)) 18px calc(40px + var(--sab));
+}
+body.onb-open{overflow:hidden}
+.onb-inner{max-width:560px;margin:0 auto}
+.onb-progress{display:flex;gap:6px;margin-bottom:28px}
+.onb-progress i{flex:1;height:3px;border-radius:99px;background:var(--steel);transition:background .3s}
+.onb-progress i.on{background:var(--red)}
+.onb-title{
+  font-family:'Barlow Condensed',sans-serif;font-weight:800;
+  font-size:clamp(38px,8vw,52px);line-height:.95;text-transform:uppercase;
+  letter-spacing:.01em;margin:10px 0 10px;
+}
+.onb-sub{color:var(--mute);font-size:14px;margin-bottom:26px}
+.onb-step .btn-primary{margin-top:18px}
+
+.field{display:block;margin-bottom:16px}
+.field-lab{
+  display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--mute);margin-bottom:8px;
+}
+.field input[type="text"]{
+  width:100%;min-height:50px;background:var(--iron);border:1px solid var(--line);border-radius:12px;
+  color:var(--bone);font-family:'Inter',sans-serif;font-size:16px;padding:10px 14px;
+}
+.field-input{
+  display:flex;align-items:center;gap:8px;background:var(--iron);
+  border:1px solid var(--line);border-radius:12px;padding:0 12px;min-height:50px;
+}
+.field-input input{
+  flex:1;width:100%;min-width:0;background:none;border:none;color:var(--bone);
+  font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;
+  font-variant-numeric:tabular-nums;text-align:right;padding:10px 0;
+  -moz-appearance:textfield;appearance:textfield;
+}
+.field-input input::-webkit-outer-spin-button,.field-input input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.field-input input:focus{outline:none}
+.field-input:focus-within{border-color:var(--red)}
+.field-input i{
+  font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
+  color:var(--mute);letter-spacing:.08em;text-transform:uppercase;flex:none;
+}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field-grid .field{margin-bottom:0}
+.field-grid + .note{margin-top:12px}
+
+.mode-cards{display:grid;gap:12px;margin-bottom:8px}
+.mode-card{
+  text-align:left;background:var(--iron);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;color:var(--bone);cursor:pointer;transition:border-color .18s;
+  font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent;
+}
+.mode-card b{display:block;font-size:16px;font-weight:600;margin-bottom:4px}
+.mode-card span{display:block;font-size:13px;color:var(--mute);line-height:1.5}
+.mode-card.active{border-color:var(--red);background:linear-gradient(180deg,var(--red-soft),var(--iron))}
+.mode-card:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+
+.btn-primary{background:var(--red);border-color:var(--red);color:#fff}
+.btn-ghost{
+  display:block;width:100%;min-height:44px;background:none;border:none;color:var(--mute);
+  font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer;margin-top:6px;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn-slim{width:auto;min-height:40px;padding:0 18px;margin-bottom:0;flex:none}
+
+/* custom-mode: program sections hidden until their data-driven versions render */
+body.mode-custom #tab-today .tracker,
+body.mode-custom #tab-today .meal,
+body.mode-custom #habitsBlock{display:none}
+
+.empty-card{
+  background:var(--iron);border:1px solid var(--line);border-radius:var(--radius);
+  padding:28px 20px;text-align:center;
+}
+.empty-card b{display:block;font-size:15px;margin-bottom:6px}
+.empty-card .note{margin-top:4px}
+
+/* ---------- settings rows ---------- */
+.set-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);margin-bottom:2px}
+.set-info{flex:1;min-width:0}
+.set-name{font-weight:600;font-size:14px}
+.set-meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tol-input{min-height:44px;width:90px}
+.sheet .set-row + .btn{margin-top:14px}
+
 /* ---------- settings sheet ---------- */
 .sheet-backdrop{
   position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.55);

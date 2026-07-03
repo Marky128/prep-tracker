@@ -26,6 +26,112 @@
 </head>
 <body>
 <div class="statusbar-shim" aria-hidden="true"></div>
+
+<!-- ======================= ONBOARDING ======================= -->
+<div class="onb" id="onboarding" hidden>
+  <div class="onb-inner">
+    <div class="onb-progress" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+
+    <section class="onb-step" data-step="1">
+      <div class="eyebrow">Welcome</div>
+      <h1 class="onb-title">Let's set you up</h1>
+      <p class="onb-sub">A minute of setup — then everything lives on this device. No account, no cloud.</p>
+      <label class="field">
+        <span class="field-lab">Your name</span>
+        <input id="onbName" type="text" autocomplete="given-name" maxlength="24" placeholder="Name">
+      </label>
+      <div class="field">
+        <span class="field-lab">Units</span>
+        <div class="chips" id="onbUnits">
+          <button class="chip active" data-units="lb">Pounds (lb)</button>
+          <button class="chip" data-units="kg">Kilograms (kg)</button>
+        </div>
+      </div>
+      <button class="btn btn-primary onb-next">Continue</button>
+    </section>
+
+    <section class="onb-step" data-step="2" hidden>
+      <div class="eyebrow">Targets</div>
+      <h1 class="onb-title">Your daily targets</h1>
+      <div class="mode-cards" id="onbPathCards">
+        <button class="mode-card" data-path="direct"><b>I know my numbers</b><span>Enter calories and macros directly.</span></button>
+        <button class="mode-card" data-path="estimate"><b>Help me estimate</b><span>A starting point from your stats — always editable.</span></button>
+      </div>
+
+      <div id="onbEstimate" hidden>
+        <div class="field">
+          <span class="field-lab">Sex (for the formula)</span>
+          <div class="chips" id="onbSex">
+            <button class="chip" data-sex="m">Male</button>
+            <button class="chip" data-sex="f">Female</button>
+          </div>
+        </div>
+        <div class="field-grid">
+          <label class="field">
+            <span class="field-lab">Weight</span>
+            <span class="field-input"><input id="onbWeight" type="number" inputmode="decimal" min="0"><i id="onbWeightUnit">lbs</i></span>
+          </label>
+          <label class="field" id="onbHeightCmField" hidden>
+            <span class="field-lab">Height</span>
+            <span class="field-input"><input id="onbHeightCm" type="number" inputmode="numeric" min="0"><i>cm</i></span>
+          </label>
+          <label class="field" id="onbHeightFtField">
+            <span class="field-lab">Height</span>
+            <span class="field-input"><input id="onbHeightFt" type="number" inputmode="numeric" min="0" placeholder="5" aria-label="feet"><i>ft</i><input id="onbHeightIn" type="number" inputmode="numeric" min="0" max="11" placeholder="10" aria-label="inches"><i>in</i></span>
+          </label>
+          <label class="field">
+            <span class="field-lab">Age</span>
+            <span class="field-input"><input id="onbAge" type="number" inputmode="numeric" min="13" max="100"><i>yrs</i></span>
+          </label>
+        </div>
+        <div class="field">
+          <span class="field-lab">Activity</span>
+          <div class="chips" id="onbActivity">
+            <button class="chip" data-activity="sedentary">Sedentary</button>
+            <button class="chip" data-activity="light">Light</button>
+            <button class="chip" data-activity="moderate">Moderate</button>
+            <button class="chip" data-activity="very">Very active</button>
+            <button class="chip" data-activity="extra">Athlete</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-lab">Goal</span>
+          <div class="chips" id="onbGoal">
+            <button class="chip" data-goal="lose">Lose</button>
+            <button class="chip" data-goal="maintain">Maintain</button>
+            <button class="chip" data-goal="gain">Gain</button>
+          </div>
+        </div>
+        <button class="btn" id="onbCalc">Calculate suggestion</button>
+        <p class="note" id="onbEstimateNote"></p>
+      </div>
+
+      <div id="onbNumbers" hidden>
+        <div class="field-grid">
+          <label class="field"><span class="field-lab">Calories</span><span class="field-input"><input id="onbKcal" type="number" inputmode="numeric" min="0"><i>kcal</i></span></label>
+          <label class="field"><span class="field-lab">Protein</span><span class="field-input"><input id="onbP" type="number" inputmode="numeric" min="0"><i>g</i></span></label>
+          <label class="field"><span class="field-lab">Carbs</span><span class="field-input"><input id="onbC" type="number" inputmode="numeric" min="0"><i>g</i></span></label>
+          <label class="field"><span class="field-lab">Fat</span><span class="field-input"><input id="onbF" type="number" inputmode="numeric" min="0"><i>g</i></span></label>
+        </div>
+        <p class="note" id="onbMacroHint"></p>
+        <button class="btn btn-primary onb-next">Continue</button>
+      </div>
+      <button class="btn-ghost onb-back">Back</button>
+    </section>
+
+    <section class="onb-step" data-step="3" hidden>
+      <div class="eyebrow">Mode</div>
+      <h1 class="onb-title">How do you want to track?</h1>
+      <div class="mode-cards" id="onbModeCards">
+        <button class="mode-card" data-mode="custom"><b>Track my own food</b><span>Log anything — quick add, your own food library, and food search.</span></button>
+        <button class="mode-card" data-mode="ethan-prep"><b>Follow Ethan's Prep Plan</b><span>A specific contest-prep program: 5 set meals with swap options, ~2,700 kcal. You can switch modes anytime in Settings.</span></button>
+      </div>
+      <button class="btn btn-primary" id="onbFinish" disabled>Start tracking</button>
+      <button class="btn-ghost onb-back">Back</button>
+    </section>
+  </div>
+</div>
+
 <div class="wrap">
 
   <!-- ======================= TODAY ======================= -->
@@ -250,8 +356,16 @@
       </div>
     </section>
 
+    <!-- CUSTOM MODE PLACEHOLDER (until Phase 3 ships logging) -->
+    <section class="block" id="customToday" hidden>
+      <div class="empty-card">
+        <b>Food logging lands in the next build</b>
+        <p class="note">Your targets are saved and ready — check back after the next update.</p>
+      </div>
+    </section>
+
     <!-- DAILY HABITS -->
-    <section class="block">
+    <section class="block" id="habitsBlock">
       <h3>Daily Habits</h3>
       <div class="habit-list">
         <button class="habit" data-habit="water">
@@ -452,6 +566,40 @@
       <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
   </div>
+
+  <div class="set-row" id="profileRow">
+    <div class="set-info">
+      <div class="set-name" id="profileSummary">—</div>
+      <div class="set-meta" id="targetsSummary">—</div>
+    </div>
+    <button class="btn btn-slim" id="editProfileBtn">Edit</button>
+  </div>
+
+  <div class="set-row">
+    <div class="set-info">
+      <div class="set-name">Mode</div>
+      <div class="set-meta" id="modeSummary">—</div>
+    </div>
+    <button class="btn btn-slim" id="modeToggleBtn">Switch</button>
+  </div>
+  <p class="note" id="modeNote" hidden></p>
+
+  <div class="set-row">
+    <div class="set-info">
+      <div class="set-name">Target range</div>
+      <div class="set-meta">How wide "in range" is, each side of a target</div>
+    </div>
+    <span class="field-input tol-input"><input id="toleranceInput" type="number" inputmode="numeric" min="1" max="20" step="1"><i>%</i></span>
+  </div>
+
+  <div class="set-row" id="backupRow" hidden>
+    <div class="set-info">
+      <div class="set-name">Pre-migration backup</div>
+      <div class="set-meta" id="backupMeta">—</div>
+    </div>
+    <button class="btn btn-slim" id="backupDownloadBtn">Save</button>
+  </div>
+
   <button class="btn" id="exportBtn">
     <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Export data (JSON)
@@ -462,12 +610,15 @@
   </button>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
   <div class="meta" id="storageInfo">—</div>
-  <div class="meta">All data stays on this device. Export regularly as a backup.</div>
+  <div class="meta">All data stays on this device. Export regularly as a backup.<br>Built with Claude Code.</div>
 </div>
 
 <script src="vendor/chart.umd.min.js"></script>
+<script src="js/migrate.js"></script>
 <script src="js/db.js"></script>
+<script src="js/targets.js"></script>
 <script src="js/history.js"></script>
+<script src="js/onboarding.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
