@@ -24,6 +24,7 @@ const TodayCustom = (() => {
   let qaSaveToFoods = false;
   let editItemId = null;
   let expandedFoodId = null;
+  let expandedDbId = null;
 
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   const fmtMacros = m => 'P ' + Math.round(m.p) + ' · C ' + Math.round(m.c) + ' · F ' + Math.round(m.f) + ' · ' + Math.round(m.kcal) + ' kcal';
@@ -152,11 +153,14 @@ const TodayCustom = (() => {
     $('#qaAdd').textContent = 'Add to ' + sec.title;
     $('#addSheet').classList.add('open');
     $('#addBackdrop').classList.add('open');
+    FoodDB.ready().then(() => renderFoodResults($('#foodSearch').value)).catch(() => {});
     renderFoodResults($('#foodSearch').value);
   }
   function closeAdd() {
     $('#addSheet').classList.remove('open');
     $('#addBackdrop').classList.remove('open');
+    expandedDbId = null;
+    expandedFoodId = null;
   }
 
   function qaMacros() {
@@ -217,16 +221,50 @@ const TodayCustom = (() => {
       '</div>';
   }
 
+  function dbRow(f) {
+    const expanded = f.i === expandedDbId;
+    const servChips = (f.s || []).map(s =>
+      '<button class="chip" data-servg="' + s[1] + '">' + esc(s[0]) + ' · ' + s[1] + 'g</button>').join('');
+    return '<div class="food-row db-row" data-dbid="' + f.i + '">' +
+      '<div class="food-row-main" role="button" tabindex="0">' +
+        '<div class="food-info food-info-db"><span class="food-name">' + esc(f.n) + '</span>' +
+        '<span class="food-meta">P ' + f.p + ' · C ' + f.c + ' · F ' + f.f + ' · ' + f.k + ' kcal per 100 g</span></div>' +
+      '</div>' +
+      (expanded
+        ? '<div class="food-qty-form db-qty-form">' +
+            (servChips ? '<div class="chips serv-chips">' + servChips + '</div>' : '') +
+            '<span class="field-input"><input type="number" inputmode="decimal" min="0" step="any" class="food-qty" value="100"><i>g</i></span>' +
+            '<button class="btn btn-primary btn-slim" data-dblog="' + f.i + '">Add</button>' +
+            '<button class="btn-ghost food-del" data-dbsave="' + f.i + '">Save to My Foods</button>' +
+          '</div>'
+        : '') +
+      '</div>';
+  }
+
   async function renderFoodResults(query) {
-    const list = await Foods.search(query || '');
     const el = $('#foodResults');
-    if (!list.length) {
-      el.innerHTML = '<p class="note">' + ((await Foods.all()).length
-        ? 'No matches.'
-        : 'Nothing saved yet — quick-adds with a name can be saved here, and logged search results land here automatically.') + '</p>';
-      return;
+    const q = (query || '').trim();
+    const mine = await Foods.search(q);
+    let html = '';
+    if (mine.length) {
+      html += '<div class="res-label">My foods</div>' +
+        mine.slice(0, q ? 6 : 20).map(f => foodRow(f, f.id === expandedFoodId)).join('');
     }
-    el.innerHTML = list.slice(0, 40).map(f => foodRow(f, f.id === expandedFoodId)).join('');
+    if (q) {
+      const hits = FoodDB.search(q, 24);
+      if (hits.length) {
+        html += '<div class="res-label">Food database</div>' + hits.map(dbRow).join('');
+      } else if (!FoodDB.count()) {
+        html += '<p class="note">Loading food database…</p>';
+      }
+      if (!mine.length && !hits.length && FoodDB.count()) {
+        html += '<p class="note">No matches — try another word, or use Quick add.</p>';
+      }
+    } else if (!mine.length) {
+      html += '<p class="note">Search ' + (FoodDB.count() ? FoodDB.count().toLocaleString() + '+' : 'thousands of') +
+        ' common foods (Canadian Nutrient File). Foods you save or log land here for quantity-only logging.</p>';
+    }
+    el.innerHTML = html;
   }
 
   async function renderManage(query) {
@@ -363,13 +401,60 @@ const TodayCustom = (() => {
         await logFood(log.dataset.log, qty, container);
         return;
       }
+
+      // bundled-database rows (add sheet only)
+      const servChip = e.target.closest('[data-servg]');
+      if (servChip) {
+        const input = servChip.closest('.food-qty-form').querySelector('.food-qty');
+        input.value = servChip.dataset.servg;
+        return;
+      }
+      const dbLog = e.target.closest('[data-dblog]');
+      if (dbLog) {
+        const f = FoodDB.byIndex(+dbLog.dataset.dblog);
+        const grams = parseFloat(dbLog.closest('.food-row').querySelector('.food-qty').value);
+        if (f && grams > 0) {
+          DayStore.mutate(profile, rec => {
+            rec.items.push({
+              id: Foods.uuid(), section: addSection, name: f.n,
+              qty: grams, unit: 'g', macros: FoodDB.macrosFor(f, grams),
+              foodId: null, ts: new Date().toISOString(),
+            });
+          });
+          expandedDbId = null;
+          closeAdd();
+        }
+        return;
+      }
+      const dbSave = e.target.closest('[data-dbsave]');
+      if (dbSave) {
+        const f = FoodDB.byIndex(+dbSave.dataset.dbsave);
+        if (f) {
+          await Foods.save({
+            name: f.n, per: '100g',
+            macros: { kcal: f.k, p: f.p, c: f.c, f: f.f },
+            servings: (f.s || []).map(s => ({ name: s[0], grams: s[1] })),
+            source: 'cnf',
+          });
+          expandedDbId = null;
+          refreshFoodViews(container);
+        }
+        return;
+      }
+
       const main = e.target.closest('.food-row-main');
       if (main) {
         const row = main.closest('.food-row');
-        expandedFoodId = expandedFoodId === row.dataset.fid ? null : row.dataset.fid;
+        if (row.dataset.dbid != null) {
+          expandedDbId = expandedDbId === +row.dataset.dbid ? null : +row.dataset.dbid;
+          expandedFoodId = null;
+        } else {
+          expandedFoodId = expandedFoodId === row.dataset.fid ? null : row.dataset.fid;
+          expandedDbId = null;
+        }
         refreshFoodViews(container);
-        if (expandedFoodId) {
-          const q = document.querySelector('.food-row.expanded .food-qty');
+        if (expandedFoodId || expandedDbId != null) {
+          const q = document.querySelector('.food-row.expanded .food-qty, .db-row .food-qty');
           if (q) { q.focus(); q.select(); }
         }
       }

@@ -638,11 +638,18 @@
     </button>
   </div>
   <div class="chips add-tabs" id="addTabs">
-    <button class="chip active" data-pane="quick">Quick add</button>
-    <button class="chip" data-pane="foods">My foods</button>
+    <button class="chip active" data-pane="foods">Search</button>
+    <button class="chip" data-pane="quick">Quick add</button>
   </div>
 
-  <div class="add-pane" id="paneQuick">
+  <div class="add-pane" id="paneFoods">
+    <label class="field">
+      <span class="field-input search-input"><input id="foodSearch" type="search" placeholder="Search foods — e.g. chicken breast" aria-label="Search foods"></span>
+    </label>
+    <div class="food-results" id="foodResults"></div>
+  </div>
+
+  <div class="add-pane" id="paneQuick" hidden>
     <label class="field">
       <span class="field-lab">Name (optional)</span>
       <input type="text" id="qaName" placeholder="e.g. Chicken &amp; rice bowl" maxlength="60">
@@ -659,13 +666,6 @@
       <span class="habit-name">Save to My Foods</span>
     </button>
     <button class="btn btn-primary" id="qaAdd">Add to Breakfast</button>
-  </div>
-
-  <div class="add-pane" id="paneFoods" hidden>
-    <label class="field">
-      <span class="field-input search-input"><input id="foodSearch" type="search" placeholder="Search my foods" aria-label="Search my foods"></span>
-    </label>
-    <div class="food-results" id="foodResults"></div>
   </div>
 </div>
 
@@ -706,6 +706,7 @@
 <script src="js/onboarding.js"></script>
 <script src="js/day-store.js"></script>
 <script src="js/foods.js"></script>
+<script src="js/food-db.js"></script>
 <script src="js/today-custom.js"></script>
 <script src="js/app.js"></script>
 </body>
