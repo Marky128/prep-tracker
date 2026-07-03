@@ -25,6 +25,7 @@ const TodayCustom = (() => {
   let editItemId = null;
   let expandedFoodId = null;
   let expandedDbId = null;
+  let online = { q: null, status: 'idle', results: [], world: false, expanded: null };
 
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   const fmtMacros = m => 'P ' + Math.round(m.p) + ' · C ' + Math.round(m.c) + ' · F ' + Math.round(m.f) + ' · ' + Math.round(m.kcal) + ' kcal';
@@ -243,9 +244,75 @@ const TodayCustom = (() => {
       '</div>';
   }
 
+  function onlineRow(item, idx) {
+    const expanded = online.expanded === idx;
+    const m = item.macros;
+    return '<div class="food-row db-row" data-online="' + idx + '">' +
+      '<div class="food-row-main" role="button" tabindex="0">' +
+        '<div class="food-info food-info-db"><span class="food-name">' + esc(item.name) +
+          (item.brand ? ' <span class="food-brand">· ' + esc(item.brand) + '</span>' : '') + '</span>' +
+        '<span class="food-meta">P ' + m.p + ' · C ' + m.c + ' · F ' + m.f + ' · ' + m.kcal + ' kcal per 100 g</span></div>' +
+      '</div>' +
+      (expanded
+        ? '<div class="food-qty-form db-qty-form">' +
+            '<span class="field-input"><input type="number" inputmode="decimal" min="0" step="any" class="food-qty" value="100"><i>g</i></span>' +
+            '<button class="btn btn-primary btn-slim" data-onlinelog="' + idx + '">Add</button>' +
+            '<p class="note online-note">Adding also saves it to My Foods.</p>' +
+          '</div>'
+        : '') +
+      '</div>';
+  }
+
+  function onlineSection(q) {
+    if (!q) return '';
+    let html = '<div class="res-label">Online · Canada</div>';
+    if (!navigator.onLine && online.status !== 'done') {
+      return html + '<p class="note">Online search needs a connection — everything above works offline.</p>';
+    }
+    if (online.status === 'loading') {
+      return html + '<div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>';
+    }
+    if (online.status === 'done' && online.q === q) {
+      if (!online.results.length) {
+        html += '<p class="note">No packaged foods found' + (online.world ? '' : ' in Canada') + '.</p>';
+      } else {
+        html += online.results.map(onlineRow).join('');
+      }
+      if (!online.world) {
+        html += '<button class="btn-ghost online-world" id="onlineWorld">Search all countries instead</button>';
+      }
+      return html;
+    }
+    if (online.status === 'busy' && online.q === q) {
+      return html + '<p class="note">Search is busy right now — give it a minute and try again.</p>' +
+        '<button class="btn online-btn" id="onlineGo">Retry online search</button>';
+    }
+    if (online.status === 'offline' && online.q === q) {
+      return html + '<p class="note">Couldn’t reach the food database — check your connection.</p>' +
+        '<button class="btn online-btn" id="onlineGo">Retry online search</button>';
+    }
+    return html + '<button class="btn online-btn" id="onlineGo">Search online for “' + esc(q) + '”</button>' +
+      '<p class="note">Branded &amp; packaged foods, via Open Food Facts.</p>';
+  }
+
+  async function runOnlineSearch(q, world) {
+    online = { q, status: 'loading', results: [], world: !!world, expanded: null };
+    renderFoodResults($('#foodSearch').value);
+    try {
+      const r = await FoodOnline.search(q, { world });
+      if (!r) return; // aborted by a newer search
+      online.status = 'done';
+      online.results = r.results;
+    } catch (err) {
+      online.status = err.message === 'offline' ? 'offline' : 'busy';
+    }
+    renderFoodResults($('#foodSearch').value);
+  }
+
   async function renderFoodResults(query) {
     const el = $('#foodResults');
     const q = (query || '').trim();
+    if (online.q && online.q !== q) online = { q: null, status: 'idle', results: [], world: false, expanded: null };
     const mine = await Foods.search(q);
     let html = '';
     if (mine.length) {
@@ -260,8 +327,9 @@ const TodayCustom = (() => {
         html += '<p class="note">Loading food database…</p>';
       }
       if (!mine.length && !hits.length && FoodDB.count()) {
-        html += '<p class="note">No matches — try another word, or use Quick add.</p>';
+        html += '<p class="note">No offline matches — try the online search below, or Quick add.</p>';
       }
+      html += onlineSection(q);
     } else if (!mine.length) {
       html += '<p class="note">Search ' + (FoodDB.count() ? FoodDB.count().toLocaleString() + '+' : 'thousands of') +
         ' common foods (Canadian Nutrient File). Foods you save or log land here for quantity-only logging.</p>';
@@ -382,6 +450,13 @@ const TodayCustom = (() => {
     });
     $('#qaAdd').addEventListener('click', submitQuickAdd);
     $('#foodSearch').addEventListener('input', () => renderFoodResults($('#foodSearch').value));
+    $('#foodSearch').addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const q = $('#foodSearch').value.trim();
+        if (q && navigator.onLine && online.status !== 'loading') runOnlineSearch(q, false);
+      }
+    });
 
     // food rows (shared handler for add-sheet pane + manage view)
     const foodsHandler = container => async e => {
@@ -401,6 +476,35 @@ const TodayCustom = (() => {
         const row = log.closest('.food-row');
         const qty = parseFloat(row.querySelector('.food-qty').value);
         await logFood(log.dataset.log, qty, container);
+        return;
+      }
+
+      // online search (add sheet only)
+      const goBtn = e.target.closest('#onlineGo');
+      if (goBtn) { runOnlineSearch($('#foodSearch').value.trim(), false); return; }
+      const worldBtn = e.target.closest('#onlineWorld');
+      if (worldBtn) { runOnlineSearch($('#foodSearch').value.trim(), true); return; }
+      const onlineLog = e.target.closest('[data-onlinelog]');
+      if (onlineLog) {
+        const item = online.results[+onlineLog.dataset.onlinelog];
+        const grams = parseFloat(onlineLog.closest('.food-row').querySelector('.food-qty').value);
+        if (item && grams > 0) {
+          const displayName = item.brand ? item.name + ' (' + item.brand + ')' : item.name;
+          // logging an online result imports it into My Foods permanently
+          const saved = await Foods.save({
+            name: displayName.slice(0, 70), brand: item.brand, per: '100g',
+            macros: item.macros, source: 'off', offCode: item.code,
+          });
+          DayStore.mutate(profile, rec => {
+            rec.items.push({
+              id: Foods.uuid(), section: addSection, name: saved.name,
+              qty: grams, unit: 'g', macros: FoodOnline.macrosFor(item, grams),
+              foodId: saved.id, ts: new Date().toISOString(),
+            });
+          });
+          online.expanded = null;
+          closeAdd();
+        }
         return;
       }
 
@@ -447,7 +551,11 @@ const TodayCustom = (() => {
       const main = e.target.closest('.food-row-main');
       if (main) {
         const row = main.closest('.food-row');
-        if (row.dataset.dbid != null) {
+        if (row.dataset.online != null) {
+          online.expanded = online.expanded === +row.dataset.online ? null : +row.dataset.online;
+          expandedFoodId = null;
+          expandedDbId = null;
+        } else if (row.dataset.dbid != null) {
           expandedDbId = expandedDbId === +row.dataset.dbid ? null : +row.dataset.dbid;
           expandedFoodId = null;
         } else {

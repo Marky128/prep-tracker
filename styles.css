@@ -504,6 +504,16 @@ body.mode-custom .bars{grid-template-columns:repeat(4,1fr)}
   margin:14px 0 4px;display:flex;align-items:center;gap:8px;
 }
 .res-label::after{content:"";flex:1;height:1px;background:var(--line)}
+.food-brand{color:var(--mute);font-weight:400}
+.online-btn{margin-top:8px}
+.online-world{min-height:44px}
+.online-note{width:100%;margin:0}
+.skeleton-row{
+  height:52px;border-radius:10px;margin:6px 0;
+  background:linear-gradient(90deg,var(--iron) 25%,var(--steel) 50%,var(--iron) 75%);
+  background-size:200% 100%;animation:skeleton 1.2s ease-in-out infinite;
+}
+@keyframes skeleton{from{background-position:200% 0}to{background-position:-200% 0}}
 .food-info-db{padding-left:6px}
 .db-qty-form{padding-left:6px}
 .serv-chips{width:100%;margin-bottom:6px}

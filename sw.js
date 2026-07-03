@@ -1,6 +1,6 @@
 /* Prep Tracker service worker — precache everything, serve cache-first.
    Bump CACHE when any asset changes so clients pick up the new version. */
-const CACHE = 'prep-tracker-v9';
+const CACHE = 'prep-tracker-v10';
 
 const ASSETS = [
   './',
@@ -15,6 +15,7 @@ const ASSETS = [
   './js/day-store.js',
   './js/foods.js',
   './js/food-db.js',
+  './js/food-online.js',
   './js/today-program.js',
   './js/today-custom.js',
   './js/dashboard.js',
