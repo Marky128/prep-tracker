@@ -95,9 +95,12 @@ const Onboarding = (() => {
     }));
 
     el.calc.addEventListener('click', () => {
-      const est = readEstimator();
-      if (!est) { el.estimateNote.textContent = 'Fill in every field above to get a suggestion.'; return; }
-      const s = Targets.suggestTargets(est);
+      const state = estimatorState();
+      if (state.missing.length) {
+        el.estimateNote.textContent = 'Still needed: ' + state.missing.join(', ') + '.';
+        return;
+      }
+      const s = Targets.suggestTargets(state.est);
       el.kcal.value = s.kcal; el.p.value = s.p; el.c.value = s.c; el.f.value = s.f;
       el.estimateNote.textContent = 'Estimated maintenance ≈ ' + s.tdee.toLocaleString() +
         ' kcal. This is a starting point — edit anything below.';
@@ -130,27 +133,49 @@ const Onboarding = (() => {
 
   function hasNumbers() { return !!(el.kcal.value || el.p.value); }
 
-  function readEstimator() {
+  /* returns { missing: [...names] } or { missing: [], est: {...} } so the
+     calc button can say exactly what's still needed */
+  function estimatorState() {
+    const missing = [];
     const sexChip = $$('#onbSex .chip.active')[0];
     const sex = sexChip ? sexChip.dataset.sex : null;
+    if (!sex) missing.push('sex');
+
     const w = parseFloat(el.weight.value);
-    const age = parseInt(el.age.value, 10);
-    const act = ($$('#onbActivity .chip.active')[0] || {}).dataset || {};
-    const goal = ($$('#onbGoal .chip.active')[0] || {}).dataset || {};
-    let heightCm;
-    if (units === 'kg') heightCm = parseFloat(el.heightCm.value);
-    else {
-      const ft = parseFloat(el.heightFt.value), inch = parseFloat(el.heightIn.value || '0');
-      heightCm = Number.isFinite(ft) ? (ft * 12 + inch) * 2.54 : NaN;
+    if (!(w > 0)) missing.push('weight');
+
+    let heightCm = null;
+    if (units === 'kg') {
+      heightCm = parseFloat(el.heightCm.value);
+      if (!(heightCm > 0)) { missing.push('height'); heightCm = null; }
+    } else {
+      const ft = parseFloat(el.heightFt.value);
+      const inch = el.heightIn.value === '' ? 0 : parseFloat(el.heightIn.value);
+      const totalIn = (Number.isFinite(ft) ? ft : 0) * 12 + (Number.isFinite(inch) ? inch : 0);
+      if (!(totalIn > 0)) missing.push('height');
+      else heightCm = totalIn * 2.54;
     }
-    if (!sex || !Number.isFinite(w) || !Number.isFinite(heightCm) || !Number.isFinite(age) || !act.activity || !goal.goal) return null;
+
+    const age = parseInt(el.age.value, 10);
+    if (!(age >= 10 && age <= 100)) missing.push('age');
+
+    const act = ($$('#onbActivity .chip.active')[0] || {}).dataset || {};
+    if (!act.activity) missing.push('activity');
+    const goal = ($$('#onbGoal .chip.active')[0] || {}).dataset || {};
+    if (!goal.goal) missing.push('goal');
+
+    if (missing.length) return { missing };
     return {
-      sex,
-      weightKg: Targets.toKg(w, units === 'kg' ? 'kg' : 'lb'),
-      heightCm, age,
-      activityId: act.activity, goalId: goal.goal,
+      missing: [],
+      est: {
+        sex,
+        weightKg: Targets.toKg(w, units === 'kg' ? 'kg' : 'lb'),
+        heightCm, age,
+        activityId: act.activity, goalId: goal.goal,
+      },
     };
   }
+  function readEstimator() { return estimatorState().est || null; }
 
   function macroHint() {
     const kcal = parseFloat(el.kcal.value);
