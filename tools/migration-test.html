@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Migration Test — Prep Tracker</title>
+<meta name="theme-color" content="#16171a">
+<style>
+  /* self-contained styling (deliberately no dependence on app assets) */
+  :root{--ink:#16171a;--iron:#1e2024;--steel:#2a2d33;--line:#33363d;--bone:#eceae5;--mute:#9a9da5;--blue:#2f74d0;--green:#5aa66a}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ink);color:var(--bone);font-family:system-ui,sans-serif;font-size:15px;line-height:1.55;padding:24px 18px calc(40px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto}
+  .eyebrow{font-family:ui-monospace,monospace;font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--blue)}
+  h1{font-size:34px;font-weight:800;text-transform:uppercase;margin:8px 0 14px;line-height:1}
+  .note{font-size:13px;color:var(--mute);margin-bottom:18px}
+  .note b{color:var(--bone)}
+  button{min-height:50px;width:100%;background:var(--blue);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:18px}
+  button:disabled{opacity:.5}
+  table{width:100%;border-collapse:collapse;background:var(--iron);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}
+  th{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);background:var(--steel)}
+  tr:last-child td{border-bottom:none}
+  td.ok{color:var(--green);font-family:ui-monospace,monospace;font-weight:600}
+  td.bad{color:#d08a2f;font-family:ui-monospace,monospace;font-weight:600}
+  .verdict{font-family:ui-monospace,monospace;font-size:18px;font-weight:600;padding:16px;border-radius:12px;border:1px solid var(--line);background:var(--iron);text-align:center;margin-bottom:14px}
+  .verdict.pass{color:var(--green);border-color:rgba(90,166,106,.5)}
+  .verdict.fail{color:#d08a2f;border-color:rgba(208,138,47,.5)}
+  .detail{font-family:ui-monospace,monospace;font-size:11px;color:var(--mute);white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Prep Tracker · Tools</div>
+  <h1>Migration Test</h1>
+  <p class="note">Dry-runs the v1 → v2 migration against a <b>copy</b> of your real
+  data in a scratch database, verifies every field survives, then proves the real
+  database was untouched. <b>Fully close the app first</b> (swipe it away) so nothing
+  writes while the test runs. This page never writes to your real data.</p>
+  <button id="run">Run migration test</button>
+  <div id="out"></div>
+</div>
+
+<script src="../js/migrate.js"></script>
+<script>
+(function () {
+  'use strict';
+  const REAL = 'prep-tracker';
+  const SCRATCH = 'prep-tracker-migration-test';
+  const out = document.getElementById('out');
+  const runBtn = document.getElementById('run');
+  const results = [];
+
+  function row(name, ok, detail) { results.push({ name, ok, detail: detail || '' }); }
+  function deepEq(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
+  function render(verdict) {
+    let html = '';
+    if (verdict) html += '<div class="verdict ' + (verdict === 'PASS' ? 'pass' : 'fail') + '">' + verdict + '</div>';
+    html += '<table><tr><th>Check</th><th>Result</th></tr>';
+    for (const r of results) {
+      html += '<tr><td>' + r.name + (r.detail ? '<div class="detail">' + r.detail + '</div>' : '') +
+              '</td><td class="' + (r.ok ? 'ok' : 'bad') + '">' + (r.ok ? 'PASS' : 'FAIL') + '</td></tr>';
+    }
+    out.innerHTML = html + '</table>';
+  }
+
+  // minimal promise IDB helpers — deliberately NOT the app's db.js (whose
+  // open() has write side-effects); this page opens the real DB at its
+  // current version and only ever creates readonly transactions on it.
+  function openDb(name, version, upgrade) {
+    return new Promise((res, rej) => {
+      const req = version ? indexedDB.open(name, version) : indexedDB.open(name);
+      if (upgrade) req.onupgradeneeded = () => upgrade(req.result);
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  }
+  function getAll(db, store) {
+    return new Promise((res, rej) => {
+      const t = db.transaction(store, 'readonly');
+      const rq = t.objectStore(store).getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      t.onerror = () => rej(t.error);
+    });
+  }
+  function putAll(db, store, records) {
+    return new Promise((res, rej) => {
+      const t = db.transaction(store, 'readwrite');
+      const s = t.objectStore(store);
+      records.forEach(r => s.put(r));
+      t.oncomplete = () => res();
+      t.onerror = () => rej(t.error);
+    });
+  }
+  function deleteDb(name) {
+    return new Promise(res => { const rq = indexedDB.deleteDatabase(name); rq.onsuccess = rq.onerror = rq.onblocked = () => res(); });
+  }
+
+  async function run() {
+    runBtn.disabled = true;
+    results.length = 0;
+    try {
+      // 1. snapshot the real DB (readonly)
+      const real = await openDb(REAL);
+      if (!real.objectStoreNames.contains('days')) {
+        out.innerHTML = '<div class="verdict fail">NOTHING TO TEST — no days store found</div>';
+        real.close(); return;
+      }
+      const daysBefore = await getAll(real, 'days');
+      real.close();
+      if (daysBefore.length === 0) {
+        out.innerHTML = '<div class="verdict fail">NOTHING TO TEST — 0 day records. This must run on the device that holds your history.</div>';
+        return;
+      }
+      const snapshot = JSON.parse(JSON.stringify(daysBefore));
+      row('Snapshot real data (' + daysBefore.length + ' day records)', true);
+
+      // 2. scratch DB gets a copy
+      await deleteDb(SCRATCH);
+      const scratch = await openDb(SCRATCH, 1, db => db.createObjectStore('days', { keyPath: 'date' }));
+      await putAll(scratch, 'days', snapshot);
+      row('Copied records into scratch DB', true);
+
+      // 3. migrate the copies
+      let migrated = 0, skipped = 0, errors = 0;
+      const after = [];
+      for (const rec of await getAll(scratch, 'days')) {
+        try {
+          const m = Migrate.migrateDay(rec);
+          if (m) { after.push(m); migrated++; } else { after.push(rec); skipped++; }
+        } catch (e) { errors++; row('Transform ' + rec.date, false, e.message); after.push(rec); }
+      }
+      await putAll(scratch, 'days', after);
+      row('Transformed ' + migrated + ' record(s), ' + skipped + ' already migrated', errors === 0);
+
+      // 4. per-record assertions on the scratch output
+      const byDate = new Map(after.map(r => [r.date, r]));
+      let fieldOk = true, kcalOk = true, v2Ok = true;
+      const MAY = new Set(['weight', 'weightUnit', 'macros', 'schema', 'mode', 'programId', 'targetsSnapshot']);
+      for (const orig of snapshot) {
+        const m = byDate.get(orig.date);
+        if (!m) { fieldOk = false; row('Missing after migration: ' + orig.date, false); continue; }
+        for (const k of Object.keys(orig)) {
+          if (MAY.has(k)) continue;
+          if (!deepEq(orig[k], m[k])) { fieldOk = false; row(orig.date + ' field "' + k + '" changed', false); }
+        }
+        if (orig.macros && ['p','c','f'].some(k => typeof orig.macros[k] === 'number' && orig.macros[k] !== m.macros[k])) {
+          fieldOk = false; row(orig.date + ' macros changed', false);
+        }
+        if (m.macros.kcal !== 4 * m.macros.p + 4 * m.macros.c + 9 * m.macros.f) { kcalOk = false; row(orig.date + ' kcal arithmetic wrong', false); }
+        if (m.schema !== 2 || m.mode !== 'program' || m.programId !== 'ethan-prep' || !m.targetsSnapshot || m.targetsSnapshot.p !== 316) {
+          v2Ok = false; row(orig.date + ' v2 fields missing/wrong', false);
+        }
+      }
+      row('Every original field preserved on every record', fieldOk);
+      row('kcal = 4P + 4C + 9F on every record', kcalOk);
+      row('v2 fields (schema/mode/program/targets) stamped correctly', v2Ok);
+      row('Record count unchanged (' + snapshot.length + ' → ' + after.length + ')', snapshot.length === after.length);
+
+      // 5. prove the real DB is untouched
+      const real2 = await openDb(REAL);
+      const daysNow = await getAll(real2, 'days');
+      real2.close();
+      const untouched = deepEq(
+        daysNow.slice().sort((a, b) => a.date < b.date ? -1 : 1),
+        snapshot.slice().sort((a, b) => a.date < b.date ? -1 : 1)
+      );
+      row('REAL database untouched (re-read matches snapshot)', untouched,
+          untouched ? '' : 'If the app was open during the test, close it fully and re-run.');
+
+      scratch.close();
+      await deleteDb(SCRATCH);
+      row('Scratch DB deleted', true);
+
+      const allOk = results.every(r => r.ok) && errors === 0;
+      render(allOk ? 'PASS' : 'FAIL');
+    } catch (e) {
+      row('Unexpected error', false, e.message);
+      render('FAIL');
+    } finally {
+      runBtn.disabled = false;
+    }
+  }
+
+  runBtn.addEventListener('click', run);
+})();
+</script>
+</body>
+</html>

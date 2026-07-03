@@ -1,0 +1,386 @@
+{
+  "id": "ethan-prep",
+  "version": 1,
+  "name": "Ethan's Prep Plan",
+  "description": "A specific contest-prep program: 5 fixed meals with swap options, tracked by checking meals off.",
+  "targets": {
+    "kcal": 2700,
+    "p": 316,
+    "c": 196,
+    "f": 45,
+    "kcalBasis": 2453,
+    "display": {
+      "kcal": "~2,700",
+      "p": "300g",
+      "c": "~230g",
+      "f": "≤50g"
+    },
+    "types": {
+      "kcal": "none",
+      "p": "floor",
+      "c": "band",
+      "f": "cap"
+    }
+  },
+  "meals": [
+    {
+      "id": "m1",
+      "num": "Meal 01",
+      "title": "Breakfast",
+      "items": [
+        "2 whole eggs",
+        "350g egg whites",
+        "2 rice cakes"
+      ],
+      "macros": {
+        "p": 47,
+        "c": 14,
+        "f": 10
+      },
+      "swapGroups": [
+        {
+          "label": "Protein swaps",
+          "multi": false,
+          "options": [
+            "Eggs + whites",
+            "200g chicken breast",
+            "200g extra lean ground turkey",
+            "200g extra lean ground beef (95–96%)"
+          ],
+          "default": [
+            "Eggs + whites"
+          ]
+        },
+        {
+          "label": "Carb swaps",
+          "multi": false,
+          "options": [
+            "2 rice cakes",
+            "150g potato",
+            "150g sweet potato"
+          ],
+          "default": [
+            "2 rice cakes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "num": "Meal 02",
+      "title": "Lunch",
+      "items": [
+        "250g cooked chicken breast",
+        "150g potato"
+      ],
+      "macros": {
+        "p": 78,
+        "c": 30,
+        "f": 9
+      },
+      "swapGroups": [
+        {
+          "label": "Meat swaps",
+          "multi": false,
+          "options": [
+            "250g chicken breast",
+            "250g turkey breast",
+            "250g extra lean ground turkey",
+            "225g top sirloin steak (trimmed)",
+            "225g extra lean ground beef"
+          ],
+          "default": [
+            "250g chicken breast"
+          ]
+        },
+        {
+          "label": "Carb swaps",
+          "multi": false,
+          "options": [
+            "150g potato",
+            "150g sweet potato",
+            "60g dry low-carb pasta",
+            "4 rice cakes"
+          ],
+          "default": [
+            "150g potato"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "num": "Meal 03",
+      "title": "Pre-Workout",
+      "items": [
+        "250g chicken breast",
+        "300g potato",
+        "4 rice cakes"
+      ],
+      "macros": {
+        "p": 78,
+        "c": 82,
+        "f": 9
+      },
+      "swapGroups": [
+        {
+          "label": "Carb swaps — choose one",
+          "multi": false,
+          "options": [
+            "300g potato",
+            "300g sweet potato",
+            "90g dry low-carb pasta",
+            "8 rice cakes"
+          ],
+          "default": [
+            "300g potato"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "num": "Meal 04",
+      "title": "Post-Workout",
+      "items": [
+        "2 scoops whey isolate",
+        "300g potato"
+      ],
+      "macros": {
+        "p": 50,
+        "c": 60,
+        "f": 2
+      },
+      "swapGroups": [
+        {
+          "label": "Protein swaps",
+          "multi": false,
+          "options": [
+            "2 scoops whey isolate",
+            "250g chicken",
+            "250g turkey",
+            "225g extra lean beef"
+          ],
+          "default": [
+            "2 scoops whey isolate"
+          ]
+        },
+        {
+          "label": "Carb swaps",
+          "multi": false,
+          "options": [
+            "300g potato",
+            "300g sweet potato",
+            "90g dry low-carb pasta",
+            "8 rice cakes"
+          ],
+          "default": [
+            "300g potato"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m5",
+      "num": "Meal 05",
+      "title": "Dinner",
+      "items": [
+        "250g extra lean ground beef",
+        "Mixed vegetables"
+      ],
+      "macros": {
+        "p": 63,
+        "c": 10,
+        "f": 15
+      },
+      "swapGroups": [
+        {
+          "label": "Meat swaps",
+          "multi": false,
+          "options": [
+            "Extra lean ground beef",
+            "Chicken breast",
+            "Ground turkey",
+            "Lean steak"
+          ],
+          "default": [
+            "Extra lean ground beef"
+          ]
+        },
+        {
+          "label": "Vegetables — mix & match",
+          "multi": true,
+          "options": [
+            "Broccoli",
+            "Green beans",
+            "Asparagus",
+            "Spinach",
+            "Peppers"
+          ],
+          "default": []
+        }
+      ]
+    }
+  ],
+  "habits": [
+    {
+      "id": "water",
+      "name": "Water",
+      "meta": "5–6 L"
+    },
+    {
+      "id": "salt",
+      "name": "Salt",
+      "meta": "Each meal"
+    },
+    {
+      "id": "lemon",
+      "name": "Lemon juice",
+      "meta": "AM"
+    },
+    {
+      "id": "steps",
+      "name": "Steps",
+      "meta": "10,000"
+    },
+    {
+      "id": "cardio",
+      "name": "Cardio",
+      "meta": "20 min"
+    },
+    {
+      "id": "supps",
+      "name": "Supplements",
+      "meta": "Taken"
+    }
+  ],
+  "reference": [
+    {
+      "title": "Daily Protocol",
+      "tables": [
+        {
+          "title": "Supplements",
+          "rows": [
+            [
+              "Vitamins",
+              "D3 · C · B6 · Omega-3 · NAC · Selenium"
+            ],
+            [
+              "Intra-workout (if budget allows)",
+              "Creatine + EAAs"
+            ]
+          ]
+        },
+        {
+          "title": "Habits",
+          "rows": [
+            [
+              "Salt",
+              "4–5 cranks per meal"
+            ],
+            [
+              "Water",
+              "5–6 L daily"
+            ],
+            [
+              "Digestion",
+              "Lemon juice in the AM · apple cider vinegar if needed"
+            ],
+            [
+              "Steps",
+              "Minimum 10,000 / day"
+            ],
+            [
+              "Cardio",
+              "20 min × 5 days / week"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Daily Totals / Approx.",
+      "tables": [
+        {
+          "columns": [
+            "Metric",
+            "Total"
+          ],
+          "rows": [
+            [
+              "Calories",
+              "2,680–2,730"
+            ],
+            [
+              "Protein",
+              "~315g"
+            ],
+            [
+              "Carbs",
+              "~225–235g"
+            ],
+            [
+              "Fat",
+              "~45g"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Easy Portion Guide",
+      "tables": [
+        {
+          "title": "Protein — cook these in bulk",
+          "rows": [
+            [
+              "Chicken breast",
+              "200–250g"
+            ],
+            [
+              "Ground turkey",
+              "200–250g"
+            ],
+            [
+              "Extra lean ground beef",
+              "200–250g"
+            ],
+            [
+              "Lean steak",
+              "200–225g"
+            ],
+            [
+              "Egg whites",
+              "300–350g"
+            ],
+            [
+              "Whey isolate",
+              "2 scoops"
+            ]
+          ]
+        },
+        {
+          "title": "Carbs",
+          "rows": [
+            [
+              "Potato — 150g",
+              "30g carbs"
+            ],
+            [
+              "Sweet potato — 150g",
+              "30g carbs"
+            ],
+            [
+              "Low-carb pasta — 60g dry",
+              "≈30–35g (varies by brand)"
+            ],
+            [
+              "Rice cakes — 2 cakes",
+              "≈14g carbs"
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

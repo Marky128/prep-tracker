@@ -1,6 +1,6 @@
 /* Prep Tracker service worker — precache everything, serve cache-first.
    Bump CACHE when any asset changes so clients pick up the new version. */
-const CACHE = 'prep-tracker-v2';
+const CACHE = 'prep-tracker-v3';
 
 const ASSETS = [
   './',
@@ -44,7 +44,11 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin) return;
+  // dev/test pages (and anything requested with ?fresh=1) always hit the
+  // network — never serve them from cache, never cache them
+  if (url.pathname.includes('/tools/') || url.searchParams.has('fresh')) return;
 
   e.respondWith(
     caches.match(req, { ignoreSearch: true }).then(hit =>

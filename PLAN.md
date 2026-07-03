@@ -15,17 +15,15 @@ marked ⚑ where they changed a decision.
 
 These get baked into migrated history — cheap to change now, expensive later.
 
-1. **⚑ CRITICAL — program calorie basis.** Your meals sum to P 316 / C 196 /
-   F 45 → **2,453 kcal** by 4/4/9, but the header says "~2,700" (a plan-level
-   number that includes veg/incidentals). If we set a 2,700 kcal compliance
-   band, every perfect prep day — past and future — reads "under range".
-   **Default: in Ethan's Plan mode there is no kcal compliance target at
-   all.** The tracker keeps its current three macro bars (P/C/F); day kcal is
-   stored as the macro-derived 2,453-basis number for history/expenditure
-   (documented on the expenditure card); program-day "compliance" stays
-   meals-completed, exactly like today. Header keeps the verbatim "~2,700"
-   display string. *Alternative: machine kcal target = 2,453 with a band —
-   adds a 4th bar to your mode but the header string will disagree with it.*
+1. **⚑ RESOLVED (owner decision 2026-07-03) — program calorie basis.**
+   Ethan Mode reflects the original prep plan exactly: the official calorie
+   number is **2,700** (profile target + header display + what other users
+   get when they activate the program). It is display-only (`types.kcal:
+   'none'`) — program-day compliance stays meals-completed with the three
+   P/C/F bars, exactly like the original app, so no day is judged against a
+   calorie band the meal macros (2,453 by 4/4/9) can't arithmetically meet.
+   The 2,453 figure survives only as internal day-intake accounting for the
+   expenditure estimate, footnoted there, never shown as a target.
 2. **App name:** ① **Intake** (my pick) ② **Fuel Log** ③ **MacroLog**.
 3. **Week strip:** calendar **Mon–Sun** (default) vs rolling last-7.
 4. **Habits in Custom mode:** spec says habits stay. Your six are prep-
@@ -212,20 +210,24 @@ Q1 is decided now.
 
 ## 4. Food database approach
 
-### 4.1 Bundled offline DB (Phase 4) — USDA FoodData Central
+### 4.1 Bundled offline DB (Phase 4) — Canadian Nutrient File ⚑ (owner decision 2026-07-03)
 
-- **Source:** FDC bulk CSVs — *Foundation Foods* (~300 high-quality staples)
-  + *SR Legacy* (~7,800). Public domain, free to redistribute.
+- **Source:** **Canadian Nutrient File (CNF)** — Health Canada's official
+  food composition database (~5,690 foods, Open Government Licence –
+  Canada, free to redistribute with attribution). Canadian-market foods
+  and nomenclature, which covers Ontario grocery staples. Fallback if the
+  CNF bulk download is unavailable at build time: USDA FDC (macros for
+  whole foods are equivalent), noted in the commit.
 - **Curation script** `tools/build-food-db.py` (dev-time only, committed for
-  reproducibility): pulls the CSVs, keeps a curated category whitelist
+  reproducibility): pulls the CNF CSVs (FOOD NAME / NUTRIENT AMOUNT /
+  CONVERSION FACTOR / MEASURE NAME), keeps a curated category whitelist
   (meats, fish, eggs, dairy, produce, grains/pasta/rice, legumes, nuts,
-  oils, common prepared items), collapses SR Legacy near-duplicates
-  (prefer raw + common cooked forms), cleans names ("Chicken, broiler,
-  breast, meat only, cooked, roasted" → "Chicken breast, roasted"), maps
-  nutrients per 100 g (protein 1003, fat 1004, carbs 1005, energy 1008),
-  attaches 2–3 common servings from `food_portion.csv` (e.g. "1 cup · 240g"),
-  assigns a popularity rank (hand-tuned category weights) for result
-  ordering. Output: `data/foods-usda.json`.
+  oils, common prepared items), collapses near-duplicates (prefer raw +
+  common cooked forms), cleans names, maps nutrients per 100 g (protein
+  203, fat 204, carbs 205, energy 208), attaches 2–3 common household
+  servings from the conversion-factor tables, assigns a popularity rank
+  (hand-tuned category weights) for result ordering. Output:
+  `data/foods-cnf.json`.
 - **Budget:** target 1,800–2,500 foods ≈ **350–600 KB raw** (≈ 90–150 KB
   over the wire; GitHub Pages gzips) — comfortably under the 2 MB cap,
   small enough to precache. Hard ceiling enforced by the script: warn >800 KB.
@@ -234,7 +236,7 @@ Q1 is decided now.
   tiers, coverage + position scoring, popularity tie-break, typo tolerance
   via 1-edit prefix match on tokens ≥5 chars. Instant per keystroke over
   ~2,500 items; zero network.
-- **Attribution:** "Food data: USDA FoodData Central (public domain)" in About.
+- **Attribution:** "Food data: Canadian Nutrient File © Health Canada" in About.
 
 ### 4.2 Online search (Phase 8) — Open Food Facts, corrected ⚑
 
@@ -242,6 +244,10 @@ Q1 is decided now.
   (Search-a-licious; the v2 `/api/v2/search` does **not** do free text —
   review-verified). Fallback if needed:
   `/cgi/search.pl?search_terms=…&search_simple=1&action=process&json=1`.
+- **⚑ Canadian-market results (owner decision):** results are filtered/
+  boosted to products sold in Canada (`countries_tags:canada`), so branded
+  matches reflect Ontario retail; a "search all countries" fallback link
+  appears when Canadian results are thin.
 - **⚑ Rate limits:** OFF allows ~10 search req/min and bans search-as-you-
   type. UX = **search-on-submit** (button / Enter), single in-flight request
   with cancellation. Non-JSON or 429 responses render a neutral "search is
