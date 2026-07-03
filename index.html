@@ -236,6 +236,20 @@
       </div></div>
     </div>
 
+    <!-- TRAINING -->
+    <section class="block">
+      <h3>Training</h3>
+      <div class="workout-card">
+        <div class="swap-lab">Today's session — tap to log</div>
+        <div class="chips" id="workoutChips">
+          <button class="chip" data-workout="pull">Pull</button>
+          <button class="chip" data-workout="push">Push</button>
+          <button class="chip" data-workout="legs">Legs</button>
+          <button class="chip" data-workout="arms">Arms</button>
+        </div>
+      </div>
+    </section>
+
     <!-- DAILY HABITS -->
     <section class="block">
       <h3>Daily Habits</h3>
@@ -276,8 +290,8 @@
           <div class="note" id="weightStatus">optional — trend beats daily noise</div>
         </div>
         <div class="weight-input">
-          <input id="weightInput" type="number" inputmode="decimal" step="0.1" min="20" max="400" placeholder="0.0" aria-label="Bodyweight in kilograms">
-          <span class="weight-unit">kg</span>
+          <input id="weightInput" type="number" inputmode="decimal" step="0.1" min="50" max="700" placeholder="0.0" aria-label="Bodyweight in pounds">
+          <span class="weight-unit">lbs</span>
         </div>
       </div>
     </section>
@@ -326,6 +340,14 @@
       <div class="chart-card">
         <div class="chart-box"><canvas id="chartWeight"></canvas></div>
         <div class="chart-key"><span><i style="background:#2f74d0"></i>Daily</span><span><i style="background:#5aa66a"></i>7-day average</span></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h3>Training</h3>
+      <div class="chart-card">
+        <div class="heatmap" id="trainmap"></div>
+        <div class="streaks" id="trainStats"></div>
       </div>
     </section>
 

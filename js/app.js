@@ -28,6 +28,9 @@
   const habitEls = $$('.habit');
   const HABITS = habitEls.map(el => el.dataset.habit);
 
+  const workoutChips = $$('#workoutChips .chip');
+  const WORKOUT_IDS = workoutChips.map(c => c.dataset.workout);
+
   const weightInput = $('#weightInput');
   const weightStatus = $('#weightStatus');
   const WEIGHT_HINT = weightStatus.textContent;
@@ -52,6 +55,7 @@
       swaps: normalizeSwaps(lastSwaps) || deepCopy(DEFAULT_SWAPS),
       habits: Object.fromEntries(HABITS.map(h => [h, false])),
       weight: null,
+      workout: null,
     };
   }
 
@@ -62,6 +66,7 @@
       swaps: normalizeSwaps(rec.swaps) || deepCopy(DEFAULT_SWAPS),
       habits: Object.fromEntries(HABITS.map(h => [h, !!(rec.habits && rec.habits[h])])),
       weight: typeof rec.weight === 'number' ? rec.weight : null,
+      workout: WORKOUT_IDS.includes(rec.workout) ? rec.workout : null,
     };
   }
 
@@ -75,6 +80,7 @@
   function persist() {
     const rec = Object.assign(deepCopy(state), {
       macros: computeMacros(),
+      weightUnit: 'lbs',
       updatedAt: new Date().toISOString(),
     });
     DB.putDay(rec).catch(err => console.warn('save failed', err));
@@ -102,7 +108,11 @@
 
   function renderWeight() {
     weightInput.value = state.weight == null ? '' : String(state.weight);
-    weightStatus.textContent = state.weight == null ? WEIGHT_HINT : 'logged ' + state.weight.toFixed(1) + ' kg today';
+    weightStatus.textContent = state.weight == null ? WEIGHT_HINT : 'logged ' + state.weight.toFixed(1) + ' lbs today';
+  }
+
+  function renderWorkout() {
+    workoutChips.forEach(c => c.classList.toggle('active', c.dataset.workout === state.workout));
   }
 
   function renderDate() {
@@ -128,6 +138,7 @@
     );
 
     habitEls.forEach(el => el.classList.toggle('done', !!state.habits[el.dataset.habit]));
+    renderWorkout();
     renderWeight();
     refreshTracker();
     renderDate();
@@ -209,10 +220,20 @@
     });
   });
 
+  /* ---------- training ---------- */
+  workoutChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const id = chip.dataset.workout;
+      state.workout = state.workout === id ? null : id; // re-tap deselects
+      renderWorkout();
+      persist();
+    });
+  });
+
   /* ---------- bodyweight ---------- */
   weightInput.addEventListener('change', () => {
     const v = parseFloat(weightInput.value.replace(',', '.'));
-    state.weight = Number.isFinite(v) && v >= 20 && v <= 400 ? Math.round(v * 10) / 10 : null;
+    state.weight = Number.isFinite(v) && v >= 50 && v <= 700 ? Math.round(v * 10) / 10 : null;
     renderWeight();
     persist();
   });
@@ -311,6 +332,30 @@
     }
   });
 
+  /* ---------- kg → lbs migration (v1 stored kg) ----------
+     Runs every boot with no fast-path setting: the per-record flag keeps it
+     idempotent, and rescanning converges kg records written late by a stale
+     v1 client or a session that ran on the localStorage fallback. */
+  async function migrateWeightUnit() {
+    try {
+      let changed = false;
+      for (const d of await DB.getAllDays()) {
+        if (typeof d.weight === 'number' && d.weightUnit !== 'lbs') {
+          d.weight = Math.round(d.weight * 2.20462 * 10) / 10;
+          d.weightUnit = 'lbs';
+          await DB.putDay(d);
+          changed = true;
+        }
+      }
+      if (changed) {
+        HistoryView.invalidate();
+        if (tabEls.history.classList.contains('active')) HistoryView.show();
+      }
+    } catch (e) {
+      console.warn('weight unit migration failed', e);
+    }
+  }
+
   /* ---------- boot ---------- */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -320,5 +365,5 @@
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist().catch(() => {});
   }
-  loadDay(todayStr());
+  migrateWeightUnit().then(() => loadDay(todayStr()));
 })();

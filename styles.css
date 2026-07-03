@@ -247,6 +247,13 @@ td:first-child{font-weight:500}
   letter-spacing:.08em;text-transform:uppercase;font-variant-numeric:tabular-nums;
 }
 
+/* ---------- training ---------- */
+.workout-card{
+  background:var(--iron);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px 18px;
+}
+.workout-card .swap-lab{margin-top:0}
+
 /* ---------- bodyweight ---------- */
 .weight-card{
   background:var(--iron);border:1px solid var(--line);border-radius:var(--radius);

@@ -1,8 +1,9 @@
 # Prep Tracker
 
 An installable, fully offline PWA for daily contest-prep tracking: 5 meals with
-swap options, macro progress bars, a daily habit checklist, bodyweight logging,
-and weekly/monthly progress charts. Vanilla HTML/CSS/JS — no build step, no
+swap options, macro progress bars, a daily habit checklist, bodyweight logging
+(lbs), a daily training log (pull / push / legs / arms split), and
+weekly/monthly progress charts. Vanilla HTML/CSS/JS — no build step, no
 accounts, no network calls after first load. All data stays on-device.
 
 ## Structure

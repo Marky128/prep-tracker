@@ -24,6 +24,13 @@ const HistoryView = (() => {
     { id: 'supps',  label: 'Supps'  },
   ];
 
+  const WORKOUTS = [
+    { id: 'pull', label: 'Pull' },
+    { id: 'push', label: 'Push' },
+    { id: 'legs', label: 'Legs' },
+    { id: 'arms', label: 'Arms' },
+  ];
+
   let range = 7;
   let cache = null; // Map<dateStr, record>
   const charts = {};
@@ -63,6 +70,9 @@ const HistoryView = (() => {
   }
   function habitDone(rec, id) {
     return !!(rec && rec.habits && rec.habits[id]);
+  }
+  function workoutOf(rec) {
+    return rec && typeof rec.workout === 'string' ? rec.workout : null;
   }
   function proteinTarget() {
     return (window.PT && window.PT.TOTALS && window.PT.TOTALS.p) || 316;
@@ -260,9 +270,58 @@ const HistoryView = (() => {
       })(),
     });
 
+    // training only became trackable with v2 — its "counts as rest" window
+    // starts at the first record that carries a workout field, not firstLogged
+    let firstTrain = null;
+    for (const [k, r] of map) {
+      if (r && 'workout' in r && (firstTrain == null || k < firstTrain)) firstTrain = k;
+    }
+    const trainCounted = keys.map(k => firstTrain != null && k >= firstTrain);
+
     renderHeatmap(keys, recs, counted);
+    renderTraining(keys, recs, trainCounted);
     renderStreaks(map);
     renderStats(map);
+  }
+
+  /* ---------- training grid + session counts ---------- */
+  function renderTraining(keys, recs, counted) {
+    const grid = $('#trainmap');
+    grid.innerHTML = '';
+    WORKOUTS.forEach(w => {
+      const row = document.createElement('div');
+      row.className = 'hm-row';
+      const lab = document.createElement('span');
+      lab.className = 'hm-lab';
+      lab.textContent = w.label;
+      row.appendChild(lab);
+      recs.forEach((rec, i) => {
+        const cell = document.createElement('i');
+        const hit = workoutOf(rec) === w.id;
+        cell.className = 'hm-cell ' + (!counted[i] ? 'blank' : hit ? 'on' : 'off');
+        cell.title = keys[i] + ' · ' + w.label + (hit ? ' ✓' : '');
+        row.appendChild(cell);
+      });
+      grid.appendChild(row);
+    });
+    grid.scrollLeft = grid.scrollWidth;
+
+    const wrap = $('#trainStats');
+    wrap.innerHTML = '';
+    const activeRecs = recs.filter((_, i) => counted[i]);
+    let sessions = 0;
+    WORKOUTS.forEach(w => {
+      const n = activeRecs.filter(r => workoutOf(r) === w.id).length;
+      sessions += n;
+      const pill = document.createElement('span');
+      pill.className = 'pill';
+      pill.innerHTML = '<b>' + w.label.toUpperCase() + '</b> <em>×' + n + '</em>';
+      wrap.appendChild(pill);
+    });
+    const rest = document.createElement('span');
+    rest.className = 'pill';
+    rest.innerHTML = '<b>REST</b> <em>×' + (activeRecs.length - sessions) + '</em>';
+    wrap.appendChild(rest);
   }
 
   /* ---------- habit heatmap ---------- */
@@ -346,9 +405,9 @@ const HistoryView = (() => {
     const w0 = avg(prev7.map(weightOf));
     if (w1 != null && w0 != null) {
       const dw = Math.round((w1 - w0) * 10) / 10; // round first so -0.04 can't print "-0.0"
-      set('statWeight', (dw > 0 ? '+' : '') + dw.toFixed(1) + 'kg');
+      set('statWeight', (dw > 0 ? '+' : '') + dw.toFixed(1) + 'lb');
     } else if (w1 != null) {
-      set('statWeight', w1.toFixed(1) + 'kg');
+      set('statWeight', w1.toFixed(1) + 'lb');
     } else {
       set('statWeight', '—');
     }

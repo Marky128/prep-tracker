@@ -158,6 +158,11 @@ const DB = (() => {
     let n = 0;
     for (const d of data.days) {
       if (d && typeof d.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.date)) {
+        // exports from the kg era lack the weightUnit flag — convert on import
+        if (typeof d.weight === 'number' && d.weightUnit !== 'lbs') {
+          d.weight = Math.round(d.weight * 2.20462 * 10) / 10;
+          d.weightUnit = 'lbs';
+        }
         await putDay(d);
         n++;
       }
