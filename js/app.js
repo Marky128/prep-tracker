@@ -12,7 +12,8 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
-  window.PT = { profile: null }; // PLAN/TOTALS filled by TodayProgram.loadProgram()
+  // merge — dashboard.js already registered PT.dayChanged on this object
+  window.PT = Object.assign(window.PT || {}, { profile: null });
 
   let profile = null;
 
@@ -74,6 +75,7 @@
       restoreProgramHeader();
       await TodayProgram.mount(profile, date);
     }
+    Dashboard.refresh(); // keeps the week strip's today-box honest across rollover/edits
   }
   function mountToday() { return mountDay(todayStr()); }
 
@@ -205,9 +207,10 @@
     Dashboard.mount(p);
   }
 
-  /* the expenditure card's Apply button lands here */
+  /* the expenditure card's Apply button lands here; remount so the open
+     Today view picks up the new targets immediately */
   window.PT.applyTargets = t =>
-    saveProfile(Object.assign({}, profile, { targets: t }));
+    saveProfile(Object.assign({}, profile, { targets: t })).then(mountToday);
 
   $('#editProfileBtn').addEventListener('click', () => {
     closeSheet();
@@ -234,7 +237,7 @@
     const v = parseInt($('#toleranceInput').value, 10);
     const tol = Number.isFinite(v) ? Math.min(20, Math.max(1, v)) : 6;
     $('#toleranceInput').value = tol;
-    saveProfile(Object.assign({}, profile, { tolerancePct: tol }));
+    saveProfile(Object.assign({}, profile, { tolerancePct: tol })).then(mountToday);
   });
 
   /* ---------- export / import / backup download ---------- */

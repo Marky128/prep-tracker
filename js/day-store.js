@@ -24,7 +24,9 @@ const DayStore = (() => {
 
   function blankCustom(date, profile) {
     const habits = {};
-    (profile.habits || []).forEach(h => { habits[h.id] = false; });
+    const defs = (profile.habits && profile.habits.length ? profile.habits
+      : (typeof Onboarding !== 'undefined' ? Onboarding.GENERIC_HABITS : [])) || [];
+    defs.forEach(h => { habits[h.id] = false; });
     return {
       date, schema: 2, mode: 'custom', programId: null,
       items: [],
@@ -51,13 +53,18 @@ const DayStore = (() => {
       cur = { date, rec };
     } else if (rec && !(rec.meals || []).some(Boolean)) {
       // program record with no meals checked (weight/habit-only writes):
-      // adopt it into custom shape, keeping weight/training
+      // adopt into custom shape but PRESERVE everything it already holds
+      // (all habit checks by their own keys, swaps, weight+unit, workout)
       const blank = blankCustom(date, profile);
-      blank.weight = typeof rec.weight === 'number' ? rec.weight : null;
-      blank.weightUnit = rec.weightUnit;
-      blank.workout = rec.workout || null;
-      Object.keys(blank.habits).forEach(h => { if (rec.habits && rec.habits[h]) blank.habits[h] = true; });
-      cur = { date, rec: blank };
+      const adopted = Object.assign({}, rec, {
+        schema: 2,
+        mode: 'custom',
+        programId: null,
+        items: Array.isArray(rec.items) ? rec.items : [],
+        habits: Object.assign({}, blank.habits, rec.habits || {}),
+        targetsSnapshot: null, // custom snapshot stamped on first save
+      });
+      cur = { date, rec: adopted };
     } else if (rec) {
       cur = { date, rec }; // program day with entries: rendered by the program view
     } else {
@@ -74,7 +81,7 @@ const DayStore = (() => {
     const rec = cur.rec;
     rec.macros = computeTotals(rec);
     if (!rec.targetsSnapshot) rec.targetsSnapshot = customSnapshot(profile);
-    rec.weightUnit = Targets.recordUnitFor(profile.units);
+    // weightUnit is owned by setWeight (it travels with the value) — never restamped here
     rec.updatedAt = new Date().toISOString();
     DB.putDay(JSON.parse(JSON.stringify(rec))).catch(err => console.warn('save failed', err));
     HistoryView.invalidate();

@@ -186,6 +186,8 @@ const HistoryView = (() => {
     $('#histEmpty').hidden = map.size > 0;
     const protH3 = document.querySelector('#tab-history .block h3 em');
     if (protH3) protH3.textContent = '/ ' + proteinTarget() + 'g';
+    const protKey = document.querySelector('#protKeyTarget');
+    if (protKey) protKey.textContent = 'Target ' + proteinTarget() + 'g';
 
     const labels = dates.map(d =>
       range === 7

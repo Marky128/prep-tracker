@@ -8,15 +8,16 @@ const html = readFileSync('index.html', 'utf8');
 const htmlIds = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
 
 // ids created at runtime by renderers (not in the static markup)
-const DYNAMIC = new Set(['onlineGo', 'onlineWorld', 'mealCount']);
+const DYNAMIC = new Set(['onlineGo', 'onlineWorld']);
 
 let failures = 0;
 for (const file of readdirSync('js')) {
   if (!file.endsWith('.js')) continue;
   const src = readFileSync('js/' + file, 'utf8');
   const refs = new Set();
-  for (const m of src.matchAll(/\$\(\s*'#([A-Za-z][\w-]*)'\s*\)/g)) refs.add(m[1]);
-  for (const m of src.matchAll(/querySelector(?:All)?\(\s*'#([A-Za-z][\w-]*)[' .[]/g)) refs.add(m[1]);
+  // $('#id'), $$('#id .child'), querySelector('#id...'), getElementById('id')
+  for (const m of src.matchAll(/\$\$?\(\s*'#([A-Za-z][\w-]*)/g)) refs.add(m[1]);
+  for (const m of src.matchAll(/querySelector(?:All)?\(\s*'#([A-Za-z][\w-]*)/g)) refs.add(m[1]);
   for (const m of src.matchAll(/getElementById\(\s*'([\w-]+)'\s*\)/g)) refs.add(m[1]);
   for (const id of refs) {
     if (!htmlIds.has(id) && !DYNAMIC.has(id)) {
@@ -25,8 +26,6 @@ for (const file of readdirSync('js')) {
     }
   }
 }
-// mealCount is rebuilt by today-program's tracker but must exist initially too
-if (!htmlIds.has('mealCount')) { console.error('FAIL  #mealCount missing from markup'); failures++; }
 
 console.log(failures ? failures + ' wiring failure(s)' : 'PASS  all JS-referenced ids exist');
 process.exit(failures ? 1 : 0);

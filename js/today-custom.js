@@ -35,9 +35,10 @@ const TodayCustom = (() => {
     return (rec && rec.targetsSnapshot) || DayStore.customSnapshot(profile);
   }
 
-  /* ---------- header ---------- */
+  /* ---------- header (same target source as the tracker: the day's
+     snapshot when it exists, so mid-day target changes can't disagree) ---------- */
   function renderHeader() {
-    const t = profile.targets;
+    const t = targets();
     $('#tab-today header .eyebrow').textContent = 'Daily Nutrition · Custom';
     $('#tab-today h1').innerHTML = 'Today <span>/ ' + t.kcal.toLocaleString() + '</span>';
     const vals = $$('#tab-today .targets .target');
@@ -107,33 +108,44 @@ const TodayCustom = (() => {
     });
 
     const n = (rec.items || []).length;
-    $('#mealCount').parentElement.textContent = n + ' item' + (n === 1 ? '' : 's');
+    $('#trackerCount').textContent = n + ' item' + (n === 1 ? '' : 's');
     $('.day-flag').textContent = 'In range';
     $('.tracker').classList.toggle('complete', allIn && n > 0);
   }
 
   /* ---------- habits ---------- */
+  function habitDefs() {
+    // migrated legacy profiles carry habits:null — fall back to the generic set
+    return (profile.habits && profile.habits.length ? profile.habits : Onboarding.GENERIC_HABITS) || [];
+  }
   function renderHabits() {
     const rec = DayStore.record();
     const list = $('#customHabitList');
-    list.innerHTML = (profile.habits || []).map(h =>
+    list.innerHTML = habitDefs().map(h =>
       '<button class="habit' + (rec.habits && rec.habits[h.id] ? ' done' : '') + '" data-chabit="' + h.id + '">' +
         '<span class="check">' + CHECK_SVG + '</span>' +
         '<span class="habit-name">' + esc(h.name) + '</span><span class="habit-meta">' + esc(h.meta || '') + '</span>' +
       '</button>'
     ).join('');
-    $('#customHabits').hidden = !(profile.habits || []).length;
+    $('#customHabits').hidden = !habitDefs().length;
   }
 
   /* ---------- shared controls (weight / training / date) ---------- */
   function renderShared() {
     const rec = DayStore.record();
     const isToday = DayStore.date() === DayStore.todayStr();
+    const kg = profile.units === 'kg';
     const wi = $('#weightInput');
-    wi.value = rec.weight == null ? '' : String(rec.weight);
-    $('#weightStatus').textContent = rec.weight == null
+    wi.min = kg ? 25 : 50;
+    wi.max = kg ? 320 : 700;
+    wi.setAttribute('aria-label', 'Bodyweight in ' + (kg ? 'kilograms' : 'pounds'));
+    // records store the unit the weight was entered in — display converted
+    const disp = rec.weight == null ? null
+      : Targets.round1(Targets.toProfileUnits(rec.weight, rec.weightUnit === 'kg' ? 'kg' : 'lbs', profile.units));
+    wi.value = disp == null ? '' : String(disp);
+    $('#weightStatus').textContent = disp == null
       ? 'optional — trend beats daily noise'
-      : 'logged ' + rec.weight.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + (isToday ? ' today' : '');
+      : 'logged ' + disp.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + (isToday ? ' today' : '');
     $('.weight-unit').textContent = Targets.unitLabel(profile.units);
     $$('#workoutChips .chip').forEach(c => c.classList.toggle('active', c.dataset.workout === rec.workout));
     $('#dateLabel').textContent = new Date(DayStore.date() + 'T12:00:00')
@@ -190,6 +202,10 @@ const TodayCustom = (() => {
     const m = qaMacros();
     const kcal = parseFloat($('#qaKcal').value) || Math.round(Targets.kcalFromMacros(m.p, m.c, m.f));
     if (!kcal && !m.p && !m.c && !m.f) { $('#qaHint').textContent = 'Enter at least one number.'; return; }
+    if (qaSaveToFoods && !($('#qaName').value || '').trim()) {
+      $('#qaHint').textContent = 'Give it a name to save it to My Foods — or untick the save toggle.';
+      return;
+    }
     const name = ($('#qaName').value || '').trim() || 'Quick add';
     const macros = { kcal: Math.round(kcal), p: m.p, c: m.c, f: m.f };
     let foodId = null;
@@ -596,7 +612,13 @@ const TodayCustom = (() => {
   }
 
   /* ---------- shared-control mutations (called from app.js) ---------- */
-  function setWeight(v) { DayStore.mutate(profile, rec => { rec.weight = v; }); }
+  function setWeight(v) {
+    DayStore.mutate(profile, rec => {
+      rec.weight = v; // entered in profile units — the unit travels with the value
+      if (v == null) delete rec.weightUnit;
+      else rec.weightUnit = Targets.recordUnitFor(profile.units);
+    });
+  }
   function setWorkout(id) {
     DayStore.mutate(profile, rec => { rec.workout = rec.workout === id ? null : id; });
   }

@@ -167,7 +167,7 @@
         <div class="t2">
           <span class="day-flag">Day complete</span>
           <span id="dateLabel"></span>
-          <span><span id="mealCount">0</span>/5 meals</span>
+          <span id="trackerCount">0/5 meals</span>
         </div>
       </div>
       <div class="bars">
@@ -195,6 +195,20 @@
 
     <!-- CUSTOM MODE: day log sections (rendered by today-custom.js) -->
     <div id="customSections" hidden></div>
+
+    <!-- TRAINING (shared by both modes) -->
+    <section class="block">
+      <h3>Training</h3>
+      <div class="workout-card">
+        <div class="swap-lab">Today's session — tap to log</div>
+        <div class="chips" id="workoutChips">
+          <button class="chip" data-workout="pull">Pull</button>
+          <button class="chip" data-workout="push">Push</button>
+          <button class="chip" data-workout="legs">Legs</button>
+          <button class="chip" data-workout="arms">Arms</button>
+        </div>
+      </div>
+    </section>
 
     <!-- DAILY HABITS -->
     <section class="block" id="habitsBlock">
@@ -273,7 +287,7 @@
       <h3>Protein <em>/ 316g</em></h3>
       <div class="chart-card">
         <div class="chart-box"><canvas id="chartProtein"></canvas></div>
-        <div class="chart-key"><span><i style="background:#2f74d0"></i>Logged</span><span><i style="background:#9a9da5"></i>Target 316g</span></div>
+        <div class="chart-key"><span><i style="background:#2f74d0"></i>Logged</span><span><i style="background:#9a9da5"></i><span id="protKeyTarget">Target</span></span></div>
       </div>
     </section>
 

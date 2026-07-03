@@ -128,6 +128,7 @@ const TodayProgram = (() => {
       swaps: normalizeSwaps(rec.swaps) || defaultSwaps(),
       habits: Object.fromEntries(program.habits.map(h => [h.id, !!(rec.habits && rec.habits[h.id])])),
       weight: typeof rec.weight === 'number' ? rec.weight : null,
+      weightUnit: rec.weightUnit, // the unit travels with the stored value
       workout: rec.workout || null,
       targetsSnapshot: rec.targetsSnapshot || null,
     };
@@ -153,7 +154,6 @@ const TodayProgram = (() => {
       programId: program.id,
       macros: computeMacros(),
       targetsSnapshot: state.targetsSnapshot || snapshot(),
-      weightUnit: Targets.recordUnitFor(profile.units),
       updatedAt: new Date().toISOString(),
     });
     state.targetsSnapshot = rec.targetsSnapshot;
@@ -173,7 +173,7 @@ const TodayProgram = (() => {
     $('#labP').textContent = done.p + ' / ' + t.p + 'g';
     $('#labC').textContent = done.c + ' / ' + t.c + 'g';
     $('#labF').textContent = done.f + ' / ' + t.f + 'g';
-    $('#mealCount').parentElement.innerHTML = '<span id="mealCount">' + n + '</span>/' + program.meals.length + ' meals';
+    $('#trackerCount').textContent = n + '/' + program.meals.length + ' meals';
     ['#wrapP', '#wrapC', '#wrapF'].forEach(s => $(s).classList.remove('in'));
     $('.day-flag').textContent = 'Day complete';
     $('.tracker').classList.toggle('complete', n === program.meals.length);
@@ -181,11 +181,17 @@ const TodayProgram = (() => {
 
   function renderShared() {
     const isToday = state.date === todayStr();
+    const kg = profile.units === 'kg';
     const wi = $('#weightInput');
-    wi.value = state.weight == null ? '' : String(state.weight);
-    $('#weightStatus').textContent = state.weight == null
+    wi.min = kg ? 25 : 50;
+    wi.max = kg ? 320 : 700;
+    wi.setAttribute('aria-label', 'Bodyweight in ' + (kg ? 'kilograms' : 'pounds'));
+    const disp = state.weight == null ? null
+      : Targets.round1(Targets.toProfileUnits(state.weight, state.weightUnit === 'kg' ? 'kg' : 'lbs', profile.units));
+    wi.value = disp == null ? '' : String(disp);
+    $('#weightStatus').textContent = disp == null
       ? 'optional — trend beats daily noise'
-      : 'logged ' + state.weight.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + (isToday ? ' today' : '');
+      : 'logged ' + disp.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + (isToday ? ' today' : '');
     $('.weight-unit').textContent = Targets.unitLabel(profile.units);
     $$('#workoutChips .chip').forEach(c => c.classList.toggle('active', c.dataset.workout === state.workout));
     $('#dateLabel').textContent = new Date(state.date + 'T12:00:00')
@@ -284,7 +290,12 @@ const TodayProgram = (() => {
   }
 
   /* ---------- shared-control mutations (from app.js) ---------- */
-  function setWeight(v) { state.weight = v; renderShared(); persist(); }
+  function setWeight(v) {
+    state.weight = v; // entered in profile units — the unit travels with the value
+    state.weightUnit = v == null ? undefined : Targets.recordUnitFor(profile.units);
+    renderShared();
+    persist();
+  }
   function setWorkout(id) {
     state.workout = state.workout === id ? null : id;
     renderShared();
