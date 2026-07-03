@@ -147,14 +147,17 @@ h1 span{color:var(--mute)}
 .exp-suggest .btn{margin-bottom:0}
 
 /* ---------- edit-a-past-day banner ---------- */
+:root{--edit-h:62px}
 .edit-banner{
   position:sticky;top:var(--sat);z-index:25;
-  display:flex;align-items:center;gap:12px;
+  display:flex;align-items:center;gap:12px;min-height:var(--edit-h);
   background:linear-gradient(180deg,var(--red-soft),rgba(22,23,26,.96));
   -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
   border:1px solid rgba(47,116,208,.55);border-radius:0 0 var(--radius) var(--radius);
   padding:12px 16px;margin:0 -18px 4px;
 }
+/* while editing, the tracker sticks BELOW the banner instead of under it */
+body.editing #tab-today .tracker{top:calc(var(--sat) + var(--edit-h))}
 .edit-banner-text{flex:1;min-width:0}
 .edit-eyebrow{
   display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;

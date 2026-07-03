@@ -51,6 +51,8 @@
   function renderEditBanner() {
     const b = $('#editBanner');
     b.hidden = !editingDate;
+    // the sticky tracker offsets itself below the banner via this class
+    document.body.classList.toggle('editing', !!editingDate);
     if (editingDate) {
       $('#editDateLabel').textContent = new Date(editingDate + 'T12:00:00')
         .toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
