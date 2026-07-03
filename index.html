@@ -56,6 +56,7 @@
       <div class="mode-cards" id="onbPathCards">
         <button class="mode-card" data-path="direct"><b>I know my numbers</b><span>Enter calories and macros directly.</span></button>
         <button class="mode-card" data-path="estimate"><b>Help me estimate</b><span>A starting point from your stats — always editable.</span></button>
+        <button class="mode-card" data-path="ethan"><b>Follow Ethan's Prep Plan</b><span>Skip the numbers — use the program's targets (~2,700 kcal, 5 set meals with swaps).</span></button>
       </div>
 
       <div id="onbEstimate" hidden>
@@ -252,8 +253,8 @@
     </div>
 
     <div class="stat-grid">
-      <div class="target"><div class="val" id="statMeals">—</div><div class="lab">Avg meals / day · 7d</div></div>
-      <div class="target"><div class="val" id="statProtein">—</div><div class="lab">Avg protein · 7d</div></div>
+      <div class="target"><div class="val" id="statMeals">—</div><div class="lab">Meals per day · last 7</div></div>
+      <div class="target"><div class="val" id="statProtein">—</div><div class="lab">Protein per day · last 7</div></div>
       <div class="target"><div class="val" id="statWeight">—</div><div class="lab">Weight vs last week</div></div>
       <div class="target"><div class="val" id="statStreak">—</div><div class="lab">Best streak</div></div>
     </div>
@@ -276,10 +277,11 @@
     </section>
 
     <section class="block">
-      <h3>Compliance</h3>
+      <h3>Consistency</h3>
       <div class="chart-card">
         <div class="chart-box"><canvas id="chartCompliance"></canvas></div>
-        <div class="chart-key"><span><i style="background:#2f74d0"></i>Logged</span><span><i style="background:#5aa66a"></i>Complete / in range</span><span><i style="background:#eceae5"></i>7-day avg</span></div>
+        <p class="chart-cap">Each bar is one day. A full <b class="cap-green">green</b> bar = the day hit its plan (all meals checked, or calories in range). The pale line is your 7-day average. Tap a bar to open that day.</p>
+        <p class="note chart-msg" id="compMsg" hidden></p>
       </div>
     </section>
 
@@ -287,7 +289,8 @@
       <h3>Protein <em>/ 316g</em></h3>
       <div class="chart-card">
         <div class="chart-box"><canvas id="chartProtein"></canvas></div>
-        <div class="chart-key"><span><i style="background:#2f74d0"></i>Logged</span><span><i style="background:#9a9da5"></i><span id="protKeyTarget">Target</span></span></div>
+        <p class="chart-cap">Grams of protein logged per day. The dashed line is your target.</p>
+        <p class="note chart-msg" id="protMsg" hidden></p>
       </div>
     </section>
 
@@ -295,7 +298,8 @@
       <h3>Bodyweight</h3>
       <div class="chart-card">
         <div class="chart-box"><canvas id="chartWeight"></canvas></div>
-        <div class="chart-key"><span><i style="background:#2f74d0"></i>Trend</span><span><i style="background:rgba(47,116,208,.35)"></i>Daily weigh-ins</span></div>
+        <p class="chart-cap">The solid line is your 7-day trend — that's the number that matters. The faded dots are raw daily weigh-ins; they're supposed to bounce around.</p>
+        <p class="note chart-msg" id="weightMsg" hidden></p>
       </div>
     </section>
 
@@ -304,6 +308,7 @@
       <div class="chart-card">
         <div class="heatmap" id="trainmap"></div>
         <div class="streaks" id="trainStats"></div>
+        <p class="chart-cap">One square per day, one row per muscle group. Tap a square to open that day.</p>
       </div>
     </section>
 
@@ -312,6 +317,7 @@
       <div class="chart-card">
         <div class="heatmap" id="heatmap"></div>
         <div class="streaks" id="streaks"></div>
+        <p class="chart-cap">Blue = done that day. Streak pills count consecutive days. Tap a square to open that day.</p>
       </div>
     </section>
   </main>

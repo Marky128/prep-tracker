@@ -78,6 +78,17 @@ const Onboarding = (() => {
     el.paths.forEach(card => card.addEventListener('click', () => {
       path = card.dataset.path;
       el.paths.forEach(c => c.classList.toggle('active', c === card));
+      if (path === 'ethan') {
+        // shortcut: take the program's targets and jump straight to the
+        // mode step with Ethan's Plan preselected
+        const t = Migrate.legacyProfile().targets;
+        el.kcal.value = t.kcal; el.p.value = t.p; el.c.value = t.c; el.f.value = t.f;
+        mode = 'ethan-prep';
+        el.modeCards.forEach(c => c.classList.toggle('active', c.dataset.mode === 'ethan-prep'));
+        el.finish.disabled = false;
+        goto(3);
+        return;
+      }
       el.estimate.hidden = path !== 'estimate';
       el.numbers.hidden = path !== 'direct' && !hasNumbers();
       if (path === 'direct') el.kcal.focus();

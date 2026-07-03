@@ -121,6 +121,7 @@
     const tdee = Math.round(meanIntake - slope * kcalPerUnit);
     return {
       eligible: true, tdee,
+      meanIntake: Math.round(meanIntake),
       days: withIntake.length, windowDays: entries.length,
       weeklyChange: round1(slope * 7), // profile units per week, signed
     };

@@ -7,6 +7,7 @@ const Dashboard = (() => {
   const $ = s => document.querySelector(s);
   let profile = null;
   let mounted = false;
+  let viewedDate = null; // the date the Today tab is currently showing
 
   function dstr(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -50,9 +51,10 @@ const Dashboard = (() => {
           return '<i class="ws-bar' + (verdict === 'in' ? ' in' : '') + '" style="height:' + h + 'px"></i>';
         }).join('');
 
-      html += '<button class="ws-day' + (isToday ? ' today' : '') + (future ? ' future' : '') + '"' +
+      const viewing = key === (viewedDate || todayKey);
+      html += '<button class="ws-day' + (isToday ? ' today' : '') + (viewing ? ' viewing' : '') + (future ? ' future' : '') + '"' +
         ' data-date="' + key + '"' + (future ? ' disabled' : '') +
-        ' aria-label="' + key + '">' +
+        ' aria-label="' + key + (viewing ? ', selected' : '') + '">' +
         '<span class="ws-lab">' + 'MTWTFSS'[i] + '</span>' +
         '<span class="ws-bars">' + bars + '</span>' +
         '<span class="ws-num">' + d.getDate() + '</span></button>';
@@ -72,9 +74,14 @@ const Dashboard = (() => {
     refresh();
   }
 
+  function setViewed(date) {
+    viewedDate = date;
+    refresh();
+  }
+
   // both Today views ping this after any persist
   window.PT = window.PT || {};
   window.PT.dayChanged = () => refresh();
 
-  return { mount, refresh };
+  return { mount, refresh, setViewed };
 })();

@@ -42,6 +42,15 @@ const HistoryView = (() => {
   }
   function noonToday() { const d = new Date(); d.setHours(12, 0, 0, 0); return d; }
   function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function fullDate(key) {
+    return new Date(key + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  function msg(id, text) {
+    const el = document.querySelector('#' + id);
+    if (!el) return;
+    el.hidden = !text;
+    if (text) el.textContent = text;
+  }
 
   async function data() {
     if (!cache) {
@@ -142,6 +151,10 @@ const HistoryView = (() => {
           bodyFont: { family: MONO, size: 11 },
           displayColors: false,
           padding: 10,
+          callbacks: {
+            // always show the full date, not just the tick label
+            title: items => (items.length ? fullDate(lastKeys[items[0].dataIndex]) : ''),
+          },
         },
       },
       scales: {
@@ -150,7 +163,7 @@ const HistoryView = (() => {
           border: { color: GRID },
           ticks: {
             color: MUTE,
-            font: { family: MONO, size: 9 },
+            font: { family: MONO, size: 10 },
             maxRotation: 0,
             autoSkip: true,
             maxTicksLimit: range === 7 ? 7 : 6,
@@ -159,7 +172,7 @@ const HistoryView = (() => {
         y: {
           grid: { color: GRID },
           border: { color: GRID },
-          ticks: { color: MUTE, font: { family: MONO, size: 9 } },
+          ticks: { color: MUTE, font: { family: MONO, size: 10 } },
           beginAtZero: true,
         },
       },
@@ -186,8 +199,6 @@ const HistoryView = (() => {
     $('#histEmpty').hidden = map.size > 0;
     const protH3 = document.querySelector('#tab-history .block h3 em');
     if (protH3) protH3.textContent = '/ ' + proteinTarget() + 'g';
-    const protKey = document.querySelector('#protKeyTarget');
-    if (protKey) protKey.textContent = 'Target ' + proteinTarget() + 'g';
 
     const labels = dates.map(d =>
       range === 7
@@ -241,15 +252,15 @@ const HistoryView = (() => {
         o.scales.y.max = 1;
         o.scales.y.ticks.display = false;
         o.scales.x.grid.display = false;
-        o.plugins.tooltip.callbacks = {
-          label: ctx => {
-            const c = comp[ctx.dataIndex];
-            return c ? c.label : '';
-          },
+        o.plugins.tooltip.callbacks.label = ctx => {
+          const c = comp[ctx.dataIndex];
+          return c ? c.label : '';
         };
         return o;
       })(),
     });
+    const anyLogged = recs.some(r => r && (r.mode === 'custom' ? (r.items || []).length : (r.meals || []).some(Boolean)));
+    msg('compMsg', anyLogged ? null : 'Nothing logged in this period yet.');
 
     /* --- protein --- */
     const prot = recs.map((r, i) => (counted[i] ? protein(r) : null));
@@ -281,9 +292,12 @@ const HistoryView = (() => {
       options: (() => {
         const o = baseOptions();
         o.scales.y.suggestedMax = proteinTarget() + 40;
+        o.plugins.tooltip.callbacks.label = ctx =>
+          ctx.datasetIndex === 1 ? 'Target ' + Math.round(ctx.parsed.y) + 'g' : Math.round(ctx.parsed.y) + 'g logged';
         return o;
       })(),
     });
+    msg('protMsg', prot.some(v => v != null && v > 0) ? null : 'Protein shows up here once you log a day.');
 
     /* --- bodyweight: trend line primary, raw weigh-ins as faded dots --- */
     const weights = recs.map(weightOf);
@@ -336,9 +350,13 @@ const HistoryView = (() => {
         const o = baseOptions();
         o.scales.y.beginAtZero = false;
         o.scales.y.grace = '10%';
+        const unitLab = profileUnits() === 'kg' ? 'kg' : 'lbs';
+        o.plugins.tooltip.callbacks.label = ctx =>
+          (ctx.datasetIndex === 0 ? 'Trend ' : 'Weigh-in ') + ctx.parsed.y + ' ' + unitLab;
         return o;
       })(),
     });
+    msg('weightMsg', weights.some(v => v != null) ? null : 'No weigh-ins in this period — add one on the Today tab.');
 
     // training only became trackable with v2 — its "counts as rest" window
     // starts at the first record that carries a workout field, not firstLogged
@@ -388,8 +406,9 @@ const HistoryView = (() => {
       : (chg > 0 ? 'trended up ' : 'trended down ') + Math.abs(chg).toFixed(1) + ' ' + unitLab + '/week';
     const hasProgramDays = [...map.values()].some(x => x && x.mode !== 'custom' && intakeOf(x) != null);
     val.textContent = r.tdee.toLocaleString();
-    note.textContent = 'Over ' + r.days + ' logged days your intake averaged out while your trend weight ' +
-      chgTxt + ' — that puts your estimated daily burn at ' + r.tdee.toLocaleString() + ' kcal.' +
+    note.textContent = 'You averaged ' + r.meanIntake.toLocaleString() + ' kcal/day over ' + r.days +
+      ' logged days while your weight ' + chgTxt + '. Put together, that means you burn about ' +
+      r.tdee.toLocaleString() + ' kcal a day.' +
       (hasProgramDays ? ' Program-day calories are computed from meal macros.' : '');
 
     const profile = window.PT.profile || {};
@@ -537,11 +556,11 @@ const HistoryView = (() => {
       const customDays = activeDays.filter(x => x.rec && x.rec.mode === 'custom');
       if (mealVals.length >= customDays.length && mealVals.length) {
         set('statMeals', (mealVals.reduce((a, v) => a + v, 0) / mealVals.length).toFixed(1) + '/5');
-        mealsLab.textContent = 'Avg meals / day · 7d';
+        mealsLab.textContent = 'Meals per day · last 7';
       } else if (customDays.length) {
         const inR = customDays.filter(x => complianceOf(x.rec).done).length;
         set('statMeals', inR + '/' + customDays.length);
-        mealsLab.textContent = 'Days in range · 7d';
+        mealsLab.textContent = 'Days in range · last 7';
       } else {
         set('statMeals', '—');
       }

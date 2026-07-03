@@ -75,7 +75,7 @@
       restoreProgramHeader();
       await TodayProgram.mount(profile, date);
     }
-    Dashboard.refresh(); // keeps the week strip's today-box honest across rollover/edits
+    Dashboard.setViewed(date); // highlights the viewed day in the week strip
   }
   function mountToday() { return mountDay(todayStr()); }
 

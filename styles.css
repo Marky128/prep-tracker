@@ -23,6 +23,8 @@
   --sab:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* the hidden attribute must always win, even over explicit display rules */
+[hidden]{display:none!important}
 html{scroll-behavior:smooth}
 body{
   background:var(--ink);
@@ -113,7 +115,13 @@ h1 span{color:var(--mute)}
   padding:7px 0 5px;cursor:pointer;min-height:80px;
   -webkit-tap-highlight-color:transparent;transition:border-color .18s;
 }
-.ws-day.today{border-color:rgba(47,116,208,.65);background:linear-gradient(180deg,var(--red-soft),var(--iron))}
+.ws-day.today{border-color:rgba(47,116,208,.65)}
+.ws-day.viewing{
+  border-color:var(--red);
+  background:linear-gradient(180deg,var(--red-soft),var(--iron));
+  box-shadow:0 0 0 1px var(--red);
+}
+.ws-day.viewing .ws-lab{color:var(--red)}
 .ws-day.future{opacity:.4;cursor:default}
 .ws-day:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 .ws-lab{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--mute);letter-spacing:.1em}
@@ -344,6 +352,10 @@ td:first-child{font-weight:500}
   letter-spacing:.08em;text-transform:uppercase;
 }
 .chart-key i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.chart-cap{font-size:12px;color:var(--mute);line-height:1.6;margin-top:12px}
+.chart-cap b{color:var(--bone);font-weight:600}
+.chart-cap .cap-green,.cap-green{color:var(--green);font-weight:600}
+.chart-msg{margin-top:8px}
 
 .heatmap{overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
 .hm-row{display:flex;align-items:center;gap:4px;margin-bottom:4px;width:max-content}
