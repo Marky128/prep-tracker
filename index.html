@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Prep Tracker</title>
+<meta name="theme-color" content="#16171a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prep Tracker">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<!-- dark launch screens — without these iOS flashes white on cold start -->
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="icons/splash-1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="icons/splash-1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="icons/splash-1179x2556.png">
+<link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="icons/splash-1206x2622.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="icons/splash-828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="icons/splash-1242x2688.png">
+<link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="icons/splash-1284x2778.png">
+<link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="icons/splash-1290x2796.png">
+<link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="icons/splash-1320x2868.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="statusbar-shim" aria-hidden="true"></div>
+<div class="wrap">
+
+  <!-- ======================= TODAY ======================= -->
+  <main id="tab-today" class="tab active">
+
+    <header>
+      <div class="eyebrow">Contest Prep · Daily Nutrition</div>
+      <button class="icon-btn" id="settingsBtn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1>Meal Plan <span>/ 2,700</span></h1>
+      <div class="targets">
+        <div class="target hot"><div class="val">~2,700</div><div class="lab">Calories</div></div>
+        <div class="target"><div class="val">300g</div><div class="lab">Protein</div></div>
+        <div class="target"><div class="val">~230g</div><div class="lab">Carbs</div></div>
+        <div class="target"><div class="val">≤50g</div><div class="lab">Fat</div></div>
+      </div>
+    </header>
+
+    <div class="tracker">
+      <div class="tracker-head">
+        <div class="t1">Today's Progress</div>
+        <div class="t2">
+          <span class="day-flag">Day complete</span>
+          <span id="dateLabel"></span>
+          <span><span id="mealCount">0</span>/5 meals</span>
+        </div>
+      </div>
+      <div class="bars">
+        <div>
+          <div class="bar"><i id="barP"></i></div>
+          <div class="bar-lab"><span>Protein</span><span id="labP">0 / 316g</span></div>
+        </div>
+        <div>
+          <div class="bar"><i id="barC"></i></div>
+          <div class="bar-lab"><span>Carbs</span><span id="labC">0 / 196g</span></div>
+        </div>
+        <div>
+          <div class="bar"><i id="barF"></i></div>
+          <div class="bar-lab"><span>Fat</span><span id="labF">0 / 45g</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEAL 1 -->
+    <div class="meal open" data-p="47" data-c="14" data-f="10">
+      <div class="meal-top" tabindex="0" role="button" aria-expanded="true">
+        <button class="check" aria-label="Mark meal 1 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="meal-title"><div class="num">Meal 01</div><h2>Breakfast</h2></div>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="meal-body"><div class="meal-inner">
+        <ul class="food-list">
+          <li>2 whole eggs</li>
+          <li>350g egg whites</li>
+          <li>2 rice cakes</li>
+        </ul>
+        <div class="macro-row">
+          <span class="pill"><b>P</b> 47g</span>
+          <span class="pill"><b>C</b> 14g</span>
+          <span class="pill"><b>F</b> 10g</span>
+        </div>
+        <div class="swap-lab">Protein swaps</div>
+        <div class="chips" data-group>
+          <button class="chip active">Eggs + whites</button>
+          <button class="chip">200g chicken breast</button>
+          <button class="chip">200g extra lean ground turkey</button>
+          <button class="chip">200g extra lean ground beef (95–96%)</button>
+        </div>
+        <div class="swap-lab">Carb swaps</div>
+        <div class="chips" data-group>
+          <button class="chip active">2 rice cakes</button>
+          <button class="chip">150g potato</button>
+          <button class="chip">150g sweet potato</button>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- MEAL 2 -->
+    <div class="meal" data-p="78" data-c="30" data-f="9">
+      <div class="meal-top" tabindex="0" role="button" aria-expanded="false">
+        <button class="check" aria-label="Mark meal 2 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="meal-title"><div class="num">Meal 02</div><h2>Lunch</h2></div>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="meal-body"><div class="meal-inner">
+        <ul class="food-list">
+          <li>250g cooked chicken breast</li>
+          <li>150g potato</li>
+        </ul>
+        <div class="macro-row">
+          <span class="pill"><b>P</b> 78g</span>
+          <span class="pill"><b>C</b> 30g</span>
+          <span class="pill"><b>F</b> 9g</span>
+        </div>
+        <div class="swap-lab">Meat swaps</div>
+        <div class="chips" data-group>
+          <button class="chip active">250g chicken breast</button>
+          <button class="chip">250g turkey breast</button>
+          <button class="chip">250g extra lean ground turkey</button>
+          <button class="chip">225g top sirloin steak (trimmed)</button>
+          <button class="chip">225g extra lean ground beef</button>
+        </div>
+        <div class="swap-lab">Carb swaps</div>
+        <div class="chips" data-group>
+          <button class="chip active">150g potato</button>
+          <button class="chip">150g sweet potato</button>
+          <button class="chip">60g dry low-carb pasta</button>
+          <button class="chip">4 rice cakes</button>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- MEAL 3 -->
+    <div class="meal" data-p="78" data-c="82" data-f="9">
+      <div class="meal-top" tabindex="0" role="button" aria-expanded="false">
+        <button class="check" aria-label="Mark meal 3 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="meal-title"><div class="num">Meal 03</div><h2>Pre-Workout</h2></div>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="meal-body"><div class="meal-inner">
+        <ul class="food-list">
+          <li>250g chicken breast</li>
+          <li>300g potato</li>
+          <li>4 rice cakes</li>
+        </ul>
+        <div class="macro-row">
+          <span class="pill"><b>P</b> 78g</span>
+          <span class="pill"><b>C</b> 82g</span>
+          <span class="pill"><b>F</b> 9g</span>
+        </div>
+        <div class="swap-lab">Carb swaps — choose one</div>
+        <div class="chips" data-group>
+          <button class="chip active">300g potato</button>
+          <button class="chip">300g sweet potato</button>
+          <button class="chip">90g dry low-carb pasta</button>
+          <button class="chip">8 rice cakes</button>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- MEAL 4 -->
+    <div class="meal" data-p="50" data-c="60" data-f="2">
+      <div class="meal-top" tabindex="0" role="button" aria-expanded="false">
+        <button class="check" aria-label="Mark meal 4 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="meal-title"><div class="num">Meal 04</div><h2>Post-Workout</h2></div>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="meal-body"><div class="meal-inner">
+        <ul class="food-list">
+          <li>2 scoops whey isolate</li>
+          <li>300g potato</li>
+        </ul>
+        <div class="macro-row">
+          <span class="pill"><b>P</b> 50g</span>
+          <span class="pill"><b>C</b> 60g</span>
+          <span class="pill"><b>F</b> 2g</span>
+        </div>
+        <div class="swap-lab">Protein swaps</div>
+        <div class="chips" data-group>
+          <button class="chip active">2 scoops whey isolate</button>
+          <button class="chip">250g chicken</button>
+          <button class="chip">250g turkey</button>
+          <button class="chip">225g extra lean beef</button>
+        </div>
+        <div class="swap-lab">Carb swaps</div>
+        <div class="chips" data-group>
+          <button class="chip active">300g potato</button>
+          <button class="chip">300g sweet potato</button>
+          <button class="chip">90g dry low-carb pasta</button>
+          <button class="chip">8 rice cakes</button>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- MEAL 5 -->
+    <div class="meal" data-p="63" data-c="10" data-f="15">
+      <div class="meal-top" tabindex="0" role="button" aria-expanded="false">
+        <button class="check" aria-label="Mark meal 5 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="meal-title"><div class="num">Meal 05</div><h2>Dinner</h2></div>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="meal-body"><div class="meal-inner">
+        <ul class="food-list">
+          <li>250g extra lean ground beef</li>
+          <li>Mixed vegetables</li>
+        </ul>
+        <div class="macro-row">
+          <span class="pill"><b>P</b> 63g</span>
+          <span class="pill"><b>C</b> 10g</span>
+          <span class="pill"><b>F</b> 15g</span>
+        </div>
+        <div class="swap-lab">Meat swaps</div>
+        <div class="chips" data-group>
+          <button class="chip active">Extra lean ground beef</button>
+          <button class="chip">Chicken breast</button>
+          <button class="chip">Ground turkey</button>
+          <button class="chip">Lean steak</button>
+        </div>
+        <div class="swap-lab">Vegetables — mix &amp; match</div>
+        <div class="chips" data-multi>
+          <button class="chip">Broccoli</button>
+          <button class="chip">Green beans</button>
+          <button class="chip">Asparagus</button>
+          <button class="chip">Spinach</button>
+          <button class="chip">Peppers</button>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- DAILY HABITS -->
+    <section class="block">
+      <h3>Daily Habits</h3>
+      <div class="habit-list">
+        <button class="habit" data-habit="water">
+          <span class="check"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="habit-name">Water</span><span class="habit-meta">5–6 L</span>
+        </button>
+        <button class="habit" data-habit="salt">
+          <span class="check"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="habit-name">Salt</span><span class="habit-meta">Each meal</span>
+        </button>
+        <button class="habit" data-habit="lemon">
+          <span class="check"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="habit-name">Lemon juice</span><span class="habit-meta">AM</span>
+        </button>
+        <button class="habit" data-habit="steps">
+          <span class="check"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="habit-name">Steps</span><span class="habit-meta">10,000</span>
+        </button>
+        <button class="habit" data-habit="cardio">
+          <span class="check"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="habit-name">Cardio</span><span class="habit-meta">20 min</span>
+        </button>
+        <button class="habit" data-habit="supps">
+          <span class="check"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="habit-name">Supplements</span><span class="habit-meta">Taken</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- BODYWEIGHT -->
+    <section class="block">
+      <h3>Bodyweight</h3>
+      <div class="weight-card">
+        <div>
+          <div class="weight-title">Morning weigh-in</div>
+          <div class="note" id="weightStatus">optional — trend beats daily noise</div>
+        </div>
+        <div class="weight-input">
+          <input id="weightInput" type="number" inputmode="decimal" step="0.1" min="20" max="400" placeholder="0.0" aria-label="Bodyweight in kilograms">
+          <span class="weight-unit">kg</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ======================= HISTORY ======================= -->
+  <main id="tab-history" class="tab">
+    <div class="page-head">
+      <div class="eyebrow">Contest Prep · Progress</div>
+      <h1>History</h1>
+    </div>
+
+    <div class="range-toggle" role="group" aria-label="Date range">
+      <button class="chip active" data-range="7">Week</button>
+      <button class="chip" data-range="30">Month</button>
+      <button class="chip" data-range="90">3 Months</button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="target"><div class="val" id="statMeals">—</div><div class="lab">Avg meals / day · 7d</div></div>
+      <div class="target"><div class="val" id="statProtein">—</div><div class="lab">Avg protein · 7d</div></div>
+      <div class="target"><div class="val" id="statWeight">—</div><div class="lab">Weight vs last week</div></div>
+      <div class="target"><div class="val" id="statStreak">—</div><div class="lab">Best streak</div></div>
+    </div>
+
+    <p class="note hist-empty" id="histEmpty" hidden>No days logged yet — check off your first meal on the Today tab.</p>
+
+    <section class="block">
+      <h3>Compliance</h3>
+      <div class="chart-card">
+        <div class="chart-box"><canvas id="chartCompliance"></canvas></div>
+        <div class="chart-key"><span><i style="background:#2f74d0"></i>Meals done</span><span><i style="background:#eceae5"></i>7-day avg</span><span><i style="background:#5aa66a"></i>5/5 day</span></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h3>Protein <em>/ 316g</em></h3>
+      <div class="chart-card">
+        <div class="chart-box"><canvas id="chartProtein"></canvas></div>
+        <div class="chart-key"><span><i style="background:#2f74d0"></i>Logged</span><span><i style="background:#9a9da5"></i>Target 316g</span></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h3>Bodyweight</h3>
+      <div class="chart-card">
+        <div class="chart-box"><canvas id="chartWeight"></canvas></div>
+        <div class="chart-key"><span><i style="background:#2f74d0"></i>Daily</span><span><i style="background:#5aa66a"></i>7-day average</span></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h3>Habit Streaks</h3>
+      <div class="chart-card">
+        <div class="heatmap" id="heatmap"></div>
+        <div class="streaks" id="streaks"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ======================= PLAN ======================= -->
+  <main id="tab-plan" class="tab">
+    <div class="page-head">
+      <div class="eyebrow">Contest Prep · Reference</div>
+      <h1>Plan</h1>
+    </div>
+
+    <!-- DAILY PROTOCOL -->
+    <section class="block">
+      <h3>Daily Protocol</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th colspan="2">Supplements</th></tr>
+        <tr><td>Vitamins</td><td class="mono">D3 · C · B6 · Omega-3 · NAC · Selenium</td></tr>
+        <tr><td>Intra-workout (if budget allows)</td><td class="mono">Creatine + EAAs</td></tr>
+      </table></div>
+      <div style="height:14px"></div>
+      <div class="tbl-wrap"><table>
+        <tr><th colspan="2">Habits</th></tr>
+        <tr><td>Salt</td><td class="mono">4–5 cranks per meal</td></tr>
+        <tr><td>Water</td><td class="mono">5–6 L daily</td></tr>
+        <tr><td>Digestion</td><td class="mono">Lemon juice in the AM · apple cider vinegar if needed</td></tr>
+        <tr><td>Steps</td><td class="mono">Minimum 10,000 / day</td></tr>
+        <tr><td>Cardio</td><td class="mono">20 min × 5 days / week</td></tr>
+      </table></div>
+    </section>
+
+    <!-- DAILY TOTALS -->
+    <section class="block">
+      <h3>Daily Totals <em>/ Approx.</em></h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>Metric</th><th>Total</th></tr>
+        <tr><td>Calories</td><td class="mono">2,680–2,730</td></tr>
+        <tr><td>Protein</td><td class="mono">~315g</td></tr>
+        <tr><td>Carbs</td><td class="mono">~225–235g</td></tr>
+        <tr><td>Fat</td><td class="mono">~45g</td></tr>
+      </table></div>
+    </section>
+
+    <!-- PORTION GUIDE -->
+    <section class="block">
+      <h3>Easy Portion Guide</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th colspan="2">Protein — cook these in bulk</th></tr>
+        <tr><td>Chicken breast</td><td class="mono">200–250g</td></tr>
+        <tr><td>Ground turkey</td><td class="mono">200–250g</td></tr>
+        <tr><td>Extra lean ground beef</td><td class="mono">200–250g</td></tr>
+        <tr><td>Lean steak</td><td class="mono">200–225g</td></tr>
+        <tr><td>Egg whites</td><td class="mono">300–350g</td></tr>
+        <tr><td>Whey isolate</td><td class="mono">2 scoops</td></tr>
+      </table></div>
+      <div style="height:14px"></div>
+      <div class="tbl-wrap"><table>
+        <tr><th colspan="2">Carbs</th></tr>
+        <tr><td>Potato — 150g</td><td class="mono">30g carbs</td></tr>
+        <tr><td>Sweet potato — 150g</td><td class="mono">30g carbs</td></tr>
+        <tr><td>Low-carb pasta — 60g dry</td><td class="mono">≈30–35g (varies by brand)</td></tr>
+        <tr><td>Rice cakes — 2 cakes</td><td class="mono">≈14g carbs</td></tr>
+      </table></div>
+    </section>
+
+    <footer>
+      <span>PREP PROTOCOL</span>
+      <span>5 MEALS / DAY</span>
+    </footer>
+  </main>
+</div>
+
+<!-- ======================= TAB BAR ======================= -->
+<nav class="tabbar" aria-label="Tabs">
+  <button class="active" data-tab="today" aria-label="Today tab">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M8.4 12.2l2.4 2.4 4.8-5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>Today</span>
+  </button>
+  <button data-tab="history" aria-label="History tab">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M5 20v-7M12 20V6M19 20v-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    <span>History</span>
+  </button>
+  <button data-tab="plan" aria-label="Plan tab">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M8.5 6h11M8.5 12h11M8.5 18h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.4" fill="currentColor"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor"/><circle cx="4.5" cy="18" r="1.4" fill="currentColor"/></svg>
+    <span>Plan</span>
+  </button>
+</nav>
+
+<!-- ======================= SETTINGS SHEET ======================= -->
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet-head">
+    <h4 id="sheetTitle">Settings</h4>
+    <button class="icon-btn" id="sheetClose" aria-label="Close settings">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <button class="btn" id="exportBtn">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Export data (JSON)
+  </button>
+  <button class="btn" id="importBtn">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 21h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Import data
+  </button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+  <div class="meta" id="storageInfo">—</div>
+  <div class="meta">All data stays on this device. Export regularly as a backup.</div>
+</div>
+
+<script src="vendor/chart.umd.min.js"></script>
+<script src="js/db.js"></script>
+<script src="js/history.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

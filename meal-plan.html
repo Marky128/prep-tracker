@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prep Meal Plan — 2,700 kcal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16171a;
+    --iron:#1e2024;
+    --steel:#2a2d33;
+    --line:#33363d;
+    --bone:#eceae5;
+    --mute:#9a9da5;
+    --red:#2f74d0;
+    --red-soft:rgba(47,116,208,.14);
+    --green:#5aa66a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--ink);
+    color:var(--bone);
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:15px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:0 18px 90px}
+
+  /* ---------- header ---------- */
+  header{padding:52px 0 30px;border-bottom:1px solid var(--line)}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
+    letter-spacing:.22em;text-transform:uppercase;color:var(--red);
+  }
+  h1{
+    font-family:'Barlow Condensed',sans-serif;font-weight:800;
+    font-size:clamp(44px,9vw,68px);line-height:.95;text-transform:uppercase;
+    letter-spacing:.01em;margin:10px 0 22px;
+  }
+  h1 span{color:var(--mute)}
+  .targets{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .target{
+    background:var(--iron);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;
+  }
+  .target .val{
+    font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:20px;
+    font-variant-numeric:tabular-nums;
+  }
+  .target .lab{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+  .target.hot{border-color:rgba(47,116,208,.55);background:linear-gradient(180deg,var(--red-soft),var(--iron))}
+  @media(max-width:520px){.targets{grid-template-columns:repeat(2,1fr)}}
+
+  /* ---------- progress bar ---------- */
+  .tracker{
+    position:sticky;top:0;z-index:20;background:rgba(22,23,26,.92);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+    padding:12px 0 14px;margin:0 -18px;padding-left:18px;padding-right:18px;
+  }
+  .tracker-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .tracker-head .t1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:.08em}
+  .tracker-head .t2{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+  .bars{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .bar{background:var(--steel);border-radius:99px;height:8px;overflow:hidden;position:relative}
+  .bar>i{display:block;height:100%;width:0%;background:var(--red);border-radius:99px;transition:width .45s cubic-bezier(.2,.8,.2,1)}
+  .bar-lab{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--mute);margin-top:4px;font-variant-numeric:tabular-nums}
+
+  /* ---------- meal cards ---------- */
+  .meal{
+    margin-top:26px;background:var(--iron);border:1px solid var(--line);
+    border-radius:var(--radius);overflow:hidden;transition:border-color .25s;
+  }
+  .meal.done{border-color:rgba(90,166,106,.5)}
+  .meal-top{
+    display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;
+    user-select:none;-webkit-tap-highlight-color:transparent;
+  }
+  .check{
+    flex:none;width:26px;height:26px;border:2px solid var(--line);border-radius:8px;
+    display:grid;place-items:center;transition:all .2s;background:transparent;cursor:pointer;
+  }
+  .check svg{width:14px;height:14px;opacity:0;transform:scale(.6);transition:all .2s}
+  .meal.done .check{background:var(--green);border-color:var(--green)}
+  .meal.done .check svg{opacity:1;transform:scale(1)}
+  .meal-title{flex:1;min-width:0}
+  .meal-title .num{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;
+    letter-spacing:.2em;text-transform:uppercase;color:var(--red);
+  }
+  .meal-title h2{
+    font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;
+    text-transform:uppercase;letter-spacing:.02em;line-height:1.05;
+  }
+  .meal.done .meal-title h2{color:var(--mute);text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--green)}
+  .chev{flex:none;color:var(--mute);transition:transform .3s}
+  .meal.open .chev{transform:rotate(180deg)}
+  .meal-body{max-height:0;overflow:hidden;transition:max-height .45s cubic-bezier(.2,.8,.2,1)}
+  .meal.open .meal-body{max-height:1400px}
+  .meal-inner{padding:0 18px 20px;border-top:1px solid var(--line);padding-top:16px}
+
+  .food-list{list-style:none;margin-bottom:14px}
+  .food-list li{
+    display:flex;align-items:center;gap:10px;padding:7px 0;font-weight:500;
+  }
+  .food-list li::before{
+    content:"";flex:none;width:6px;height:6px;background:var(--red);border-radius:2px;
+  }
+  .macro-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .pill{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;
+    background:var(--steel);border:1px solid var(--line);border-radius:99px;
+    padding:5px 12px;font-variant-numeric:tabular-nums;
+  }
+  .pill b{color:var(--red);font-weight:600}
+
+  .swap-lab{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--mute);
+    margin:14px 0 8px;display:flex;align-items:center;gap:8px;
+  }
+  .swap-lab::after{content:"";flex:1;height:1px;background:var(--line)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--bone);
+    background:transparent;border:1px solid var(--line);border-radius:99px;
+    padding:7px 14px;cursor:pointer;transition:all .18s;
+  }
+  .chip:hover{border-color:var(--red);color:#fff}
+  .chip.active{background:var(--red);border-color:var(--red);color:#fff}
+  .chip:focus-visible,.check:focus-visible,.meal-top:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  .note{font-size:12px;color:var(--mute);margin-top:10px;font-style:italic}
+
+  /* ---------- sections ---------- */
+  section.block{margin-top:44px}
+  .block h3{
+    font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:30px;
+    text-transform:uppercase;letter-spacing:.02em;margin-bottom:14px;
+  }
+  .block h3 em{font-style:normal;color:var(--red)}
+  table{width:100%;border-collapse:collapse;background:var(--iron);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .tbl-wrap{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .tbl-wrap table{border:none;border-radius:0}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  th{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--mute);background:var(--steel);
+  }
+  td.mono{font-family:'IBM Plex Mono',monospace;font-size:13px;font-variant-numeric:tabular-nums;color:var(--mute)}
+  td:first-child{font-weight:500}
+
+  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);
+    display:flex;justify-content:space-between;letter-spacing:.06em}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none!important;animation:none!important}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Contest Prep · Daily Nutrition</div>
+    <h1>Meal Plan <span>/ 2,700</span></h1>
+    <div class="targets">
+      <div class="target hot"><div class="val">~2,700</div><div class="lab">Calories</div></div>
+      <div class="target"><div class="val">300g</div><div class="lab">Protein</div></div>
+      <div class="target"><div class="val">~230g</div><div class="lab">Carbs</div></div>
+      <div class="target"><div class="val">≤50g</div><div class="lab">Fat</div></div>
+    </div>
+  </header>
+
+  <div class="tracker">
+    <div class="tracker-head">
+      <div class="t1">Today's Progress</div>
+      <div class="t2"><span id="mealCount">0</span>/5 meals</div>
+    </div>
+    <div class="bars">
+      <div>
+        <div class="bar"><i id="barP"></i></div>
+        <div class="bar-lab"><span>Protein</span><span id="labP">0 / 316g</span></div>
+      </div>
+      <div>
+        <div class="bar"><i id="barC"></i></div>
+        <div class="bar-lab"><span>Carbs</span><span id="labC">0 / 196g</span></div>
+      </div>
+      <div>
+        <div class="bar"><i id="barF"></i></div>
+        <div class="bar-lab"><span>Fat</span><span id="labF">0 / 45g</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEAL 1 -->
+  <div class="meal open" data-p="47" data-c="14" data-f="10">
+    <div class="meal-top" tabindex="0" role="button" aria-expanded="true">
+      <button class="check" aria-label="Mark meal 1 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="meal-title"><div class="num">Meal 01</div><h2>Breakfast</h2></div>
+      <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="meal-body"><div class="meal-inner">
+      <ul class="food-list">
+        <li>2 whole eggs</li>
+        <li>350g egg whites</li>
+        <li>2 rice cakes</li>
+      </ul>
+      <div class="macro-row">
+        <span class="pill"><b>P</b> 47g</span>
+        <span class="pill"><b>C</b> 14g</span>
+        <span class="pill"><b>F</b> 10g</span>
+      </div>
+      <div class="swap-lab">Protein swaps</div>
+      <div class="chips" data-group>
+        <button class="chip active">Eggs + whites</button>
+        <button class="chip">200g chicken breast</button>
+        <button class="chip">200g extra lean ground turkey</button>
+        <button class="chip">200g extra lean ground beef (95–96%)</button>
+      </div>
+      <div class="swap-lab">Carb swaps</div>
+      <div class="chips" data-group>
+        <button class="chip active">2 rice cakes</button>
+        <button class="chip">150g potato</button>
+        <button class="chip">150g sweet potato</button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- MEAL 2 -->
+  <div class="meal" data-p="78" data-c="30" data-f="9">
+    <div class="meal-top" tabindex="0" role="button" aria-expanded="false">
+      <button class="check" aria-label="Mark meal 2 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="meal-title"><div class="num">Meal 02</div><h2>Lunch</h2></div>
+      <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="meal-body"><div class="meal-inner">
+      <ul class="food-list">
+        <li>250g cooked chicken breast</li>
+        <li>150g potato</li>
+      </ul>
+      <div class="macro-row">
+        <span class="pill"><b>P</b> 78g</span>
+        <span class="pill"><b>C</b> 30g</span>
+        <span class="pill"><b>F</b> 9g</span>
+      </div>
+      <div class="swap-lab">Meat swaps</div>
+      <div class="chips" data-group>
+        <button class="chip active">250g chicken breast</button>
+        <button class="chip">250g turkey breast</button>
+        <button class="chip">250g extra lean ground turkey</button>
+        <button class="chip">225g top sirloin steak (trimmed)</button>
+        <button class="chip">225g extra lean ground beef</button>
+      </div>
+      <div class="swap-lab">Carb swaps</div>
+      <div class="chips" data-group>
+        <button class="chip active">150g potato</button>
+        <button class="chip">150g sweet potato</button>
+        <button class="chip">60g dry low-carb pasta</button>
+        <button class="chip">4 rice cakes</button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- MEAL 3 -->
+  <div class="meal" data-p="78" data-c="82" data-f="9">
+    <div class="meal-top" tabindex="0" role="button" aria-expanded="false">
+      <button class="check" aria-label="Mark meal 3 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="meal-title"><div class="num">Meal 03</div><h2>Pre-Workout</h2></div>
+      <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="meal-body"><div class="meal-inner">
+      <ul class="food-list">
+        <li>250g chicken breast</li>
+        <li>300g potato</li>
+        <li>4 rice cakes</li>
+      </ul>
+      <div class="macro-row">
+        <span class="pill"><b>P</b> 78g</span>
+        <span class="pill"><b>C</b> 82g</span>
+        <span class="pill"><b>F</b> 9g</span>
+      </div>
+      <div class="swap-lab">Carb swaps — choose one</div>
+      <div class="chips" data-group>
+        <button class="chip active">300g potato</button>
+        <button class="chip">300g sweet potato</button>
+        <button class="chip">90g dry low-carb pasta</button>
+        <button class="chip">8 rice cakes</button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- MEAL 4 -->
+  <div class="meal" data-p="50" data-c="60" data-f="2">
+    <div class="meal-top" tabindex="0" role="button" aria-expanded="false">
+      <button class="check" aria-label="Mark meal 4 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="meal-title"><div class="num">Meal 04</div><h2>Post-Workout</h2></div>
+      <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="meal-body"><div class="meal-inner">
+      <ul class="food-list">
+        <li>2 scoops whey isolate</li>
+        <li>300g potato</li>
+      </ul>
+      <div class="macro-row">
+        <span class="pill"><b>P</b> 50g</span>
+        <span class="pill"><b>C</b> 60g</span>
+        <span class="pill"><b>F</b> 2g</span>
+      </div>
+      <div class="swap-lab">Protein swaps</div>
+      <div class="chips" data-group>
+        <button class="chip active">2 scoops whey isolate</button>
+        <button class="chip">250g chicken</button>
+        <button class="chip">250g turkey</button>
+        <button class="chip">225g extra lean beef</button>
+      </div>
+      <div class="swap-lab">Carb swaps</div>
+      <div class="chips" data-group>
+        <button class="chip active">300g potato</button>
+        <button class="chip">300g sweet potato</button>
+        <button class="chip">90g dry low-carb pasta</button>
+        <button class="chip">8 rice cakes</button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- MEAL 5 -->
+  <div class="meal" data-p="63" data-c="10" data-f="15">
+    <div class="meal-top" tabindex="0" role="button" aria-expanded="false">
+      <button class="check" aria-label="Mark meal 5 complete"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#16171a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="meal-title"><div class="num">Meal 05</div><h2>Dinner</h2></div>
+      <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="meal-body"><div class="meal-inner">
+      <ul class="food-list">
+        <li>250g extra lean ground beef</li>
+        <li>Mixed vegetables</li>
+      </ul>
+      <div class="macro-row">
+        <span class="pill"><b>P</b> 63g</span>
+        <span class="pill"><b>C</b> 10g</span>
+        <span class="pill"><b>F</b> 15g</span>
+      </div>
+      <div class="swap-lab">Meat swaps</div>
+      <div class="chips" data-group>
+        <button class="chip active">Extra lean ground beef</button>
+        <button class="chip">Chicken breast</button>
+        <button class="chip">Ground turkey</button>
+        <button class="chip">Lean steak</button>
+      </div>
+      <div class="swap-lab">Vegetables — mix &amp; match</div>
+      <div class="chips" data-multi>
+        <button class="chip">Broccoli</button>
+        <button class="chip">Green beans</button>
+        <button class="chip">Asparagus</button>
+        <button class="chip">Spinach</button>
+        <button class="chip">Peppers</button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- DAILY PROTOCOL -->
+  <section class="block">
+    <h3>Daily Protocol</h3>
+    <div class="tbl-wrap"><table>
+      <tr><th colspan="2">Supplements</th></tr>
+      <tr><td>Vitamins</td><td class="mono">D3 · C · B6 · Omega-3 · NAC · Selenium</td></tr>
+      <tr><td>Intra-workout (if budget allows)</td><td class="mono">Creatine + EAAs</td></tr>
+    </table></div>
+    <div style="height:14px"></div>
+    <div class="tbl-wrap"><table>
+      <tr><th colspan="2">Habits</th></tr>
+      <tr><td>Salt</td><td class="mono">4–5 cranks per meal</td></tr>
+      <tr><td>Water</td><td class="mono">5–6 L daily</td></tr>
+      <tr><td>Digestion</td><td class="mono">Lemon juice in the AM · apple cider vinegar if needed</td></tr>
+      <tr><td>Steps</td><td class="mono">Minimum 10,000 / day</td></tr>
+      <tr><td>Cardio</td><td class="mono">20 min × 5 days / week</td></tr>
+    </table></div>
+  </section>
+
+  <!-- DAILY TOTALS -->
+  <section class="block">
+    <h3>Daily Totals <em>/ Approx.</em></h3>
+    <div class="tbl-wrap"><table>
+      <tr><th>Metric</th><th>Total</th></tr>
+      <tr><td>Calories</td><td class="mono">2,680–2,730</td></tr>
+      <tr><td>Protein</td><td class="mono">~315g</td></tr>
+      <tr><td>Carbs</td><td class="mono">~225–235g</td></tr>
+      <tr><td>Fat</td><td class="mono">~45g</td></tr>
+    </table></div>
+  </section>
+
+  <!-- PORTION GUIDE -->
+  <section class="block">
+    <h3>Easy Portion Guide</h3>
+    <div class="tbl-wrap"><table>
+      <tr><th colspan="2">Protein — cook these in bulk</th></tr>
+      <tr><td>Chicken breast</td><td class="mono">200–250g</td></tr>
+      <tr><td>Ground turkey</td><td class="mono">200–250g</td></tr>
+      <tr><td>Extra lean ground beef</td><td class="mono">200–250g</td></tr>
+      <tr><td>Lean steak</td><td class="mono">200–225g</td></tr>
+      <tr><td>Egg whites</td><td class="mono">300–350g</td></tr>
+      <tr><td>Whey isolate</td><td class="mono">2 scoops</td></tr>
+    </table></div>
+    <div style="height:14px"></div>
+    <div class="tbl-wrap"><table>
+      <tr><th colspan="2">Carbs</th></tr>
+      <tr><td>Potato — 150g</td><td class="mono">30g carbs</td></tr>
+      <tr><td>Sweet potato — 150g</td><td class="mono">30g carbs</td></tr>
+      <tr><td>Low-carb pasta — 60g dry</td><td class="mono">≈30–35g (varies by brand)</td></tr>
+      <tr><td>Rice cakes — 2 cakes</td><td class="mono">≈14g carbs</td></tr>
+    </table></div>
+  </section>
+
+  <footer>
+    <span>PREP PROTOCOL</span>
+    <span>5 MEALS / DAY</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  const meals = [...document.querySelectorAll('.meal')];
+  const totals = meals.reduce((a,m)=>({
+    p:a.p + +m.dataset.p, c:a.c + +m.dataset.c, f:a.f + +m.dataset.f
+  }),{p:0,c:0,f:0});
+
+  const barP=document.getElementById('barP'), barC=document.getElementById('barC'), barF=document.getElementById('barF');
+  const labP=document.getElementById('labP'), labC=document.getElementById('labC'), labF=document.getElementById('labF');
+  const count=document.getElementById('mealCount');
+
+  function refresh(){
+    let p=0,c=0,f=0,n=0;
+    meals.forEach(m=>{
+      if(m.classList.contains('done')){
+        p+= +m.dataset.p; c+= +m.dataset.c; f+= +m.dataset.f; n++;
+      }
+    });
+    barP.style.width=Math.min(100,p/totals.p*100)+'%';
+    barC.style.width=Math.min(100,c/totals.c*100)+'%';
+    barF.style.width=Math.min(100,f/totals.f*100)+'%';
+    labP.textContent=p+' / '+totals.p+'g';
+    labC.textContent=c+' / '+totals.c+'g';
+    labF.textContent=f+' / '+totals.f+'g';
+    count.textContent=n;
+  }
+  refresh();
+
+  meals.forEach(m=>{
+    const top=m.querySelector('.meal-top');
+    const check=m.querySelector('.check');
+
+    top.addEventListener('click',e=>{
+      if(e.target.closest('.check'))return;
+      const open=m.classList.toggle('open');
+      top.setAttribute('aria-expanded',open);
+    });
+    top.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();top.click();}
+    });
+    check.addEventListener('click',e=>{
+      e.stopPropagation();
+      m.classList.toggle('done');
+      refresh();
+    });
+  });
+
+  // swap chips: single-select groups + multi-select veg
+  document.querySelectorAll('[data-group]').forEach(g=>{
+    g.addEventListener('click',e=>{
+      const chip=e.target.closest('.chip');
+      if(!chip)return;
+      g.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+  });
+  document.querySelectorAll('[data-multi]').forEach(g=>{
+    g.addEventListener('click',e=>{
+      const chip=e.target.closest('.chip');
+      if(!chip)return;
+      chip.classList.toggle('active');
+    });
+  });
+})();
+</script>
+</body>
+</html>
