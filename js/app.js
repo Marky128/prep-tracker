@@ -95,6 +95,7 @@
 
   /* ---------- midnight rollover ---------- */
   async function checkRollover() {
+    if (typeof TrainView !== 'undefined' && TrainView.checkRollover) TrainView.checkRollover();
     if (editingDate) return; // an edit session is pinned to its date
     const t = todayStr();
     const cur = TodayCustom.isActive() ? DayStore.date() : TodayProgram.currentDate();
@@ -108,15 +109,35 @@
   window.addEventListener('pageshow', checkRollover);
   setInterval(checkRollover, 30000);
 
-  /* ---------- shared controls: training + bodyweight ---------- */
-  $$('#workoutChips .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const id = chip.dataset.workout;
-      if (TodayCustom.isActive()) TodayCustom.setWorkout(id);
-      else TodayProgram.setWorkout(id);
-    });
-  });
+  /* ---------- day workout tag (written by the Train page) ----------
+     History's training heatmap reads rec.workout; sessions keep it in
+     sync. Route through the live Today view when it has the date
+     mounted, else load-modify-write — never both, to avoid clobbering. */
+  window.PT.tagWorkout = async (date, type) => {
+    const mounted = TodayCustom.isActive() ? DayStore.date() : TodayProgram.currentDate();
+    if (mounted === date) {
+      if (TodayCustom.isActive()) TodayCustom.setWorkout(type);
+      else TodayProgram.setWorkout(type);
+      return;
+    }
+    const rec = await DB.getDay(date).catch(() => null);
+    if (rec) {
+      if (rec.workout === (type || null)) return;
+      rec.workout = type || null;
+      rec.updatedAt = new Date().toISOString();
+      await DB.putDay(rec).catch(() => {});
+    } else if (type) {
+      const program = activeProgram();
+      await DB.putDay(program
+        ? { date, schema: 2, mode: 'program', programId: program, meals: [], habits: {}, weight: null, workout: type, macros: { kcal: 0, p: 0, c: 0, f: 0 }, targetsSnapshot: null, updatedAt: new Date().toISOString() }
+        : { date, schema: 2, mode: 'custom', programId: null, items: [], habits: {}, weight: null, workout: type, macros: { kcal: 0, p: 0, c: 0, f: 0 }, targetsSnapshot: null, updatedAt: new Date().toISOString() }
+      ).catch(() => {});
+    }
+    HistoryView.invalidate();
+    if (window.PT.dayChanged) window.PT.dayChanged();
+  };
 
+  /* ---------- shared controls: bodyweight ---------- */
   $('#weightInput').addEventListener('change', () => {
     const v = parseFloat($('#weightInput').value.replace(',', '.'));
     const kg = profile && profile.units === 'kg';
@@ -127,7 +148,7 @@
   });
 
   /* ---------- tabs ---------- */
-  const tabEls = { today: $('#tab-today'), history: $('#tab-history'), plan: $('#tab-plan') };
+  const tabEls = { today: $('#tab-today'), train: $('#tab-train'), history: $('#tab-history'), plan: $('#tab-plan') };
   $$('.tabbar button').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
@@ -137,6 +158,7 @@
       try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }
       catch (e) { window.scrollTo(0, 0); }
       if (tab === 'history') HistoryView.show();
+      if (tab === 'train') TrainView.show(profile);
     });
   });
 
@@ -157,11 +179,89 @@
     $('#toleranceInput').value = profile.tolerancePct == null ? 6 : profile.tolerancePct;
   }
 
+  /* ---------- appearance & layout settings ---------- */
+  function renderAppearanceUI() {
+    const cur = Appearance.get();
+    $('#themeGrid').innerHTML = Appearance.THEMES.map(t =>
+      '<button class="theme-card' + (cur.theme === t.id ? ' active' : '') + '" data-theme-pick="' + t.id + '">' +
+        '<span class="theme-dots theme-' + t.id + '" aria-hidden="true"><i class="td-bg"></i><i class="td-card"></i><i class="td-acc"></i></span>' +
+        '<b>' + t.name + '</b><span class="theme-desc">' + t.desc + '</span>' +
+      '</button>').join('');
+    $('#accentSwatches').innerHTML = Appearance.ACCENTS.map(a =>
+      '<button class="swatch' + (cur.accent === a.id ? ' on' : '') + '" data-accent-pick="' + a.id + '"' +
+        ' style="--sw:' + a.color + '" aria-label="' + a.name + ' accent">' +
+        '<svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5L6 12l7.5-8" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '</button>').join('');
+  }
+
+  function renderLayoutUI() {
+    const layout = Appearance.getLayout();
+    const rows = layout.order.map((id, i) => {
+      const block = Appearance.BLOCKS.find(b => b.id === id);
+      if (!block) return '';
+      const hidden = !!layout.hide[id];
+      return '<div class="layout-row" data-block="' + id + '">' +
+        '<div class="lay-arrows">' +
+          '<button class="lay-btn" data-move="up" data-id="' + id + '"' + (i === 0 ? ' disabled' : '') + ' aria-label="Move ' + block.name + ' up">▲</button>' +
+          '<button class="lay-btn" data-move="down" data-id="' + id + '"' + (i === layout.order.length - 1 ? ' disabled' : '') + ' aria-label="Move ' + block.name + ' down">▼</button>' +
+        '</div>' +
+        '<span class="lay-name' + (hidden ? ' off' : '') + '">' + block.name + '</span>' +
+        (block.hideable
+          ? '<button class="lay-btn lay-eye" data-hide="' + id + '" aria-label="' + (hidden ? 'Show' : 'Hide') + ' ' + block.name + '">' + (hidden ? 'Show' : 'Hide') + '</button>'
+          : '<span class="lay-fixed">always on</span>') +
+        '</div>';
+    }).join('');
+    const extras = Appearance.HIDEABLE_EXTRAS.map(x => {
+      const hidden = !!layout.hide[x.id];
+      return '<div class="layout-row">' +
+        '<div class="lay-arrows"></div>' +
+        '<span class="lay-name' + (hidden ? ' off' : '') + '">' + x.name + '</span>' +
+        '<button class="lay-btn lay-eye" data-hide="' + x.id + '" aria-label="' + (hidden ? 'Show' : 'Hide') + ' ' + x.name + '">' + (hidden ? 'Show' : 'Hide') + '</button>' +
+        '</div>';
+    }).join('');
+    $('#layoutList').innerHTML = rows + extras;
+  }
+
+  $('#themeGrid').addEventListener('click', e => {
+    const b = e.target.closest('[data-theme-pick]');
+    if (!b) return;
+    Appearance.setAppearance({ theme: b.dataset.themePick });
+    renderAppearanceUI();
+  });
+  $('#accentSwatches').addEventListener('click', e => {
+    const b = e.target.closest('[data-accent-pick]');
+    if (!b) return;
+    Appearance.setAppearance({ accent: b.dataset.accentPick });
+    renderAppearanceUI();
+  });
+  $('#layoutList').addEventListener('click', e => {
+    const move = e.target.closest('[data-move]');
+    const hide = e.target.closest('[data-hide]');
+    const layout = Appearance.getLayout();
+    if (move) {
+      const id = move.dataset.id;
+      const i = layout.order.indexOf(id);
+      const j = move.dataset.move === 'up' ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= layout.order.length) return;
+      layout.order.splice(i, 1);
+      layout.order.splice(j, 0, id);
+      Appearance.setLayout(layout);
+      renderLayoutUI();
+    } else if (hide) {
+      const id = hide.dataset.hide;
+      if (layout.hide[id]) delete layout.hide[id];
+      else layout.hide[id] = true;
+      Appearance.setLayout(layout);
+      renderLayoutUI();
+    }
+  });
+
   async function updateStorageInfo() {
     const el = $('#storageInfo');
     try {
       const days = await DB.getAllDays();
       const foods = await DB.getAllFoods();
+      const workouts = await DB.getAllWorkouts();
       let persisted = false;
       if (navigator.storage && navigator.storage.persisted) {
         persisted = await navigator.storage.persisted().catch(() => false);
@@ -169,6 +269,7 @@
       el.textContent =
         days.length + ' day' + (days.length === 1 ? '' : 's') + ' · ' +
         foods.length + ' saved food' + (foods.length === 1 ? '' : 's') + ' · ' +
+        workouts.length + ' workout' + (workouts.length === 1 ? '' : 's') + ' · ' +
         (DB.usingFallback() ? 'localStorage' : 'IndexedDB') + ' · persistent: ' + (persisted ? 'yes' : 'no');
     } catch (e) {
       el.textContent = 'storage status unavailable';
@@ -188,6 +289,8 @@
     sheet.classList.add('open');
     backdrop.classList.add('open');
     updateSettingsUI();
+    renderAppearanceUI();
+    renderLayoutUI();
     updateStorageInfo();
     updateBackupRow();
   }
@@ -289,7 +392,9 @@
         if (p) await saveProfile(p);
       }
       Foods.invalidate();
+      Workouts.invalidateAll(); // also drops the custom-exercise cache
       HistoryView.invalidate();
+      await Appearance.init(); // imported theme/layout take effect now
       await mountToday();
       updateStorageInfo();
       alert('Imported ' + n + ' day(s).');
@@ -348,6 +453,7 @@
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().catch(() => {});
     }
+    Appearance.init().catch(() => {}); // head script already applied the mirror; reconcile with IDB
     try { await TodayProgram.loadProgram(); } // sets PT.PLAN/TOTALS for history
     catch (err) { console.warn('program load failed', err); }
     let p = null;

@@ -1,12 +1,13 @@
 /* Promise wrapper over IndexedDB with a transparent localStorage fallback.
-   v2 schema: 'days' (keyPath date), 'settings' (out-of-line keys),
-   'foods' (keyPath id). Day records carry per-record schema flags; the
-   v1→v2 transform itself lives in js/migrate.js (global Migrate). */
+   v3 schema: 'days' (keyPath date), 'settings' (out-of-line keys),
+   'foods' (keyPath id), 'workouts' (keyPath id, one record per session).
+   Day records carry per-record schema flags; the v1→v2 transform itself
+   lives in js/migrate.js (global Migrate). */
 const DB = (() => {
   'use strict';
 
   const NAME = 'prep-tracker';
-  const VERSION = 2;
+  const VERSION = 3;
   const LS = 'pt:';
 
   let dbPromise = null;
@@ -24,7 +25,12 @@ const DB = (() => {
         if (!db.objectStoreNames.contains('days')) db.createObjectStore('days', { keyPath: 'date' });
         if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings');
         if (!db.objectStoreNames.contains('foods')) db.createObjectStore('foods', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('workouts')) db.createObjectStore('workouts', { keyPath: 'id' });
       };
+      // another same-origin context on the old version is holding the
+      // upgrade off. Its onversionchange (below) closes it so this normally
+      // clears on its own; surface it if a frozen tab makes it linger.
+      req.onblocked = () => { console.warn('IndexedDB upgrade blocked by another open tab — close other copies of the app'); };
       req.onsuccess = () => {
         const db = req.result;
         try { sessionStorage.removeItem('pt:vreload'); } catch (e) {}
@@ -64,13 +70,17 @@ const DB = (() => {
   function migrateFromLS(db) {
     return new Promise(resolve => {
       let keys;
-      try { keys = Object.keys(localStorage).filter(k => k.startsWith(LS) && !k.startsWith(LS + 'vreload')); }
+      // only fallback-store records — pt:appearance / pt:layout mirrors
+      // live in localStorage on purpose and must survive
+      const prefixes = ['day:', 'set:', 'food:', 'workout:'].map(p => LS + p);
+      try { keys = Object.keys(localStorage).filter(k => prefixes.some(p => k.startsWith(p))); }
       catch (e) { resolve(); return; }
       if (!keys.length) { resolve(); return; }
-      const t = db.transaction(['days', 'settings', 'foods'], 'readwrite');
+      const t = db.transaction(['days', 'settings', 'foods', 'workouts'], 'readwrite');
       const days = t.objectStore('days');
       const settings = t.objectStore('settings');
       const foods = t.objectStore('foods');
+      const workouts = t.objectStore('workouts');
       for (const k of keys) {
         const val = ls.read(k);
         if (val == null) continue;
@@ -84,6 +94,8 @@ const DB = (() => {
           settings.put(val, k.slice((LS + 'set:').length));
         } else if (k.startsWith(LS + 'food:') && val.id) {
           foods.put(val);
+        } else if (k.startsWith(LS + 'workout:') && val.id) {
+          workouts.put(val);
         }
       }
       t.oncomplete = () => {
@@ -173,17 +185,49 @@ const DB = (() => {
     await tx('foods', 'readwrite', s => s.delete(id));
   }
 
+  /* ---------- workouts ---------- */
+  async function getWorkout(id) {
+    if (await useLS()) return ls.read(LS + 'workout:' + id);
+    const rec = await tx('workouts', 'readonly', s => s.get(id));
+    return rec === undefined ? null : rec;
+  }
+  async function putWorkout(rec) {
+    if (await useLS()) return ls.write(LS + 'workout:' + rec.id, rec);
+    await tx('workouts', 'readwrite', s => s.put(rec));
+  }
+  async function deleteWorkout(id) {
+    if (await useLS()) { try { localStorage.removeItem(LS + 'workout:' + id); } catch (e) {} return; }
+    await tx('workouts', 'readwrite', s => s.delete(id));
+  }
+  async function getAllWorkouts() {
+    let rows;
+    if (await useLS()) rows = ls.keysWith(LS + 'workout:').map(k => ls.read(k)).filter(Boolean);
+    else rows = (await tx('workouts', 'readonly', s => s.getAll())) || [];
+    // chronological: by date, then start time so same-day order is stable
+    // (IDB getAll returns UUID-key order). A total order matters — the tag
+    // sync and repeat-last both trust "last element = most recent".
+    return rows.sort((a, b) => {
+      const ka = String(a.date) + (a.startedAt || '');
+      const kb = String(b.date) + (b.startedAt || '');
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
+  }
+
   /* ---------- backup / restore ---------- */
   async function exportAll() {
     return {
       app: 'prep-tracker',
-      version: 3,
+      version: 4,
       exportedAt: new Date().toISOString(),
       days: await getAllDays(),
       foods: await getAllFoods(),
+      workouts: await getAllWorkouts(),
       settings: {
         profile: await getSetting('profile'),
         lastSwaps: await getSetting('lastSwaps'),
+        appearance: await getSetting('appearance'),
+        layout: await getSetting('layout'),
+        customExercises: await getSetting('customExercises'),
       },
     };
   }
@@ -211,8 +255,41 @@ const DB = (() => {
     if (Array.isArray(data.foods)) {
       for (const f of data.foods) if (f && f.id && f.name) await putFood(f);
     }
+    if (Array.isArray(data.workouts)) {
+      for (const w of data.workouts) {
+        // sanitize into the shape the renderers assume, so a hand-edited or
+        // truncated backup can't poison the Train tab into a permanent crash
+        if (!w || typeof w.id !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(w.date || '')) continue;
+        const clean = {
+          id: w.id, date: w.date,
+          type: typeof w.type === 'string' ? w.type : null,
+          startedAt: typeof w.startedAt === 'string' ? w.startedAt : null,
+          endedAt: typeof w.endedAt === 'string' ? w.endedAt : null,
+          unit: w.unit === 'kg' ? 'kg' : 'lb',
+          exercises: (Array.isArray(w.exercises) ? w.exercises : []).map(ex => ({
+            exId: String((ex && ex.exId) || ''),
+            name: String((ex && ex.name) || ''),
+            sets: (ex && Array.isArray(ex.sets) ? ex.sets : []).map(st => ({
+              w: st && typeof st.w === 'number' ? st.w : null,
+              r: st && typeof st.r === 'number' ? st.r : null,
+              done: !!(st && st.done),
+            })),
+          })).filter(ex => ex.exId),
+          updatedAt: typeof w.updatedAt === 'string' ? w.updatedAt : new Date().toISOString(),
+        };
+        await putWorkout(clean);
+      }
+    }
     const s = data.settings || {};
     if (s.lastSwaps) await putSetting('lastSwaps', s.lastSwaps);
+    if (s.appearance) await putSetting('appearance', s.appearance);
+    if (s.layout) await putSetting('layout', s.layout);
+    if (Array.isArray(s.customExercises)) {
+      const clean = s.customExercises
+        .filter(e => e && typeof e.id === 'string' && typeof e.name === 'string')
+        .map(e => ({ id: e.id, name: e.name, grp: typeof e.grp === 'string' ? e.grp : 'other', custom: true }));
+      await putSetting('customExercises', clean);
+    }
     if (s.profile && opts.profile === 'replace') await putSetting('profile', s.profile);
     return n;
   }
@@ -221,6 +298,7 @@ const DB = (() => {
     getDay, putDay, getAllDays,
     getSetting, putSetting, deleteSetting,
     getAllFoods, putFood, deleteFood,
+    getWorkout, putWorkout, deleteWorkout, getAllWorkouts,
     exportAll, importAll,
     usingFallback: () => lsMode,
   };

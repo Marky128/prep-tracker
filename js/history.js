@@ -5,14 +5,28 @@ const HistoryView = (() => {
 
   const $ = s => document.querySelector(s);
 
-  const BLUE = '#2f74d0';
-  const BLUE_SOFT = 'rgba(47,116,208,.12)';
-  const GREEN = '#5aa66a';
-  const GRID = '#33363d';
-  const MUTE = '#9a9da5';
-  const BONE = '#eceae5';
-  const IRON = '#1e2024';
   const MONO = "'IBM Plex Mono', ui-monospace, monospace";
+
+  /* palette follows the active theme — re-read before every rebuild */
+  let BLUE = '#2f74d0';
+  let BLUE_SOFT = 'rgba(47,116,208,.12)';
+  let GREEN = '#5aa66a';
+  let GRID = '#33363d';
+  let MUTE = '#9a9da5';
+  let BONE = '#eceae5';
+  let IRON = '#1e2024';
+  function refreshPalette() {
+    if (typeof Appearance === 'undefined') return;
+    const c = Appearance.colors();
+    BLUE = c.accent; BLUE_SOFT = c.accentSoft; GREEN = c.green;
+    GRID = c.grid; MUTE = c.mute; BONE = c.bone; IRON = c.iron;
+  }
+  function alpha(color, a) {
+    const m = /^#([0-9a-f]{6})$/i.exec(String(color).trim());
+    if (!m) return color;
+    const n = parseInt(m[1], 16);
+    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
   const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const HABITS = [
@@ -186,6 +200,7 @@ const HistoryView = (() => {
 
   /* ---------- rebuild everything ---------- */
   async function rebuild() {
+    refreshPalette();
     const map = await data();
     const today = noonToday();
 
@@ -282,7 +297,7 @@ const HistoryView = (() => {
           },
           {
             data: keys.map(() => proteinTarget()),
-            borderColor: 'rgba(236,234,229,.45)',
+            borderColor: alpha(BONE, .45),
             borderDash: [5, 5],
             borderWidth: 1.5,
             pointRadius: 0,
@@ -340,7 +355,7 @@ const HistoryView = (() => {
             data: weights,
             showLine: false,
             pointRadius: range === 7 ? 3 : 2.5,
-            pointBackgroundColor: 'rgba(47,116,208,.35)',
+            pointBackgroundColor: alpha(BLUE, .35),
             pointBorderWidth: 0,
             order: 1,
           },

@@ -147,7 +147,6 @@ const TodayCustom = (() => {
       ? 'optional — trend beats daily noise'
       : 'logged ' + disp.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + (isToday ? ' today' : '');
     $('.weight-unit').textContent = Targets.unitLabel(profile.units);
-    $$('#workoutChips .chip').forEach(c => c.classList.toggle('active', c.dataset.workout === rec.workout));
     $('#dateLabel').textContent = new Date(DayStore.date() + 'T12:00:00')
       .toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
   }
@@ -620,7 +619,8 @@ const TodayCustom = (() => {
     });
   }
   function setWorkout(id) {
-    DayStore.mutate(profile, rec => { rec.workout = rec.workout === id ? null : id; });
+    // explicit set (not a toggle) — the Train page owns the day's tag now
+    DayStore.mutate(profile, rec => { rec.workout = id || null; });
   }
   function toggleSharedHabit() { /* program habit list is hidden in custom mode */ }
 

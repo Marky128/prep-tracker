@@ -193,7 +193,6 @@ const TodayProgram = (() => {
       ? 'optional — trend beats daily noise'
       : 'logged ' + disp.toFixed(1) + ' ' + Targets.unitLabel(profile.units) + (isToday ? ' today' : '');
     $('.weight-unit').textContent = Targets.unitLabel(profile.units);
-    $$('#workoutChips .chip').forEach(c => c.classList.toggle('active', c.dataset.workout === state.workout));
     $('#dateLabel').textContent = new Date(state.date + 'T12:00:00')
       .toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
   }
@@ -297,7 +296,8 @@ const TodayProgram = (() => {
     persist();
   }
   function setWorkout(id) {
-    state.workout = state.workout === id ? null : id;
+    // explicit set (not a toggle) — the Train page owns the day's tag now
+    state.workout = id || null;
     renderShared();
     persist();
   }

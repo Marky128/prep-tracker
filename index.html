@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Intake — macro tracker</title>
 <meta name="theme-color" content="#16171a">
+<script>
+/* apply the saved theme before first paint (mirror of the IDB setting) */
+(function(){try{
+  var a = JSON.parse(localStorage.getItem('pt:appearance') || '{}');
+  var d = document.documentElement;
+  if (a.theme && a.theme !== 'carbon') d.dataset.theme = a.theme;
+  if (a.accent && a.accent !== 'cobalt') d.dataset.accent = a.accent;
+}catch(e){}})();
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -195,20 +204,6 @@
     <!-- CUSTOM MODE: day log sections (rendered by today-custom.js) -->
     <div id="customSections" hidden></div>
 
-    <!-- TRAINING (shared by both modes) -->
-    <section class="block">
-      <h3>Training</h3>
-      <div class="workout-card">
-        <div class="swap-lab">Today's session — tap to log</div>
-        <div class="chips" id="workoutChips">
-          <button class="chip" data-workout="pull">Pull</button>
-          <button class="chip" data-workout="push">Push</button>
-          <button class="chip" data-workout="legs">Legs</button>
-          <button class="chip" data-workout="arms">Arms</button>
-        </div>
-      </div>
-    </section>
-
     <!-- DAILY HABITS -->
     <section class="block" id="habitsBlock">
       <h3>Daily Habits</h3>
@@ -222,7 +217,7 @@
     </section>
 
     <!-- BODYWEIGHT -->
-    <section class="block">
+    <section class="block" id="weightBlock">
       <h3>Bodyweight</h3>
       <div class="weight-card">
         <div>
@@ -234,6 +229,58 @@
           <span class="weight-unit">lbs</span>
         </div>
       </div>
+    </section>
+  </main>
+
+  <!-- ======================= TRAIN ======================= -->
+  <main id="tab-train" class="tab">
+    <div class="page-head">
+      <div class="eyebrow">Training · Log</div>
+      <h1>Train</h1>
+    </div>
+
+    <!-- today's session / active workout editor (rendered by train.js) -->
+    <div id="trainSession"></div>
+
+    <!-- this week at a glance -->
+    <section class="block" id="trainWeekBlock" hidden>
+      <h3>This Week</h3>
+      <div class="stat-grid" id="trainWeekStats"></div>
+    </section>
+
+    <!-- per-exercise progress -->
+    <section class="block" id="trainProgressBlock" hidden>
+      <h3>Exercise Progress</h3>
+      <div class="chart-card">
+        <div class="chips ex-picker-chips" id="trainExChips"></div>
+        <div class="chips metric-chips" id="trainMetricChips" role="group" aria-label="Metric">
+          <button class="chip active" data-metric="e1rm">Est. 1RM</button>
+          <button class="chip" data-metric="topW">Top weight</button>
+          <button class="chip" data-metric="volume">Volume</button>
+        </div>
+        <div class="chart-box"><canvas id="chartExercise"></canvas></div>
+        <p class="chart-cap" id="exChartCap">Each point is one session's best set. Tap a point to open that session.</p>
+        <div class="ex-session-list" id="exSessionList"></div>
+      </div>
+    </section>
+
+    <!-- weekly / monthly volume -->
+    <section class="block" id="trainVolumeBlock" hidden>
+      <h3>Training Volume</h3>
+      <div class="chart-card">
+        <div class="range-toggle vol-toggle" role="group" aria-label="Volume grouping">
+          <button class="chip active" data-vol="week">Weekly</button>
+          <button class="chip" data-vol="month">Monthly</button>
+        </div>
+        <div class="chart-box"><canvas id="chartVolume"></canvas></div>
+        <p class="chart-cap">Total weight lifted (weight × reps, all completed sets). The pale bar is the current period so far.</p>
+      </div>
+    </section>
+
+    <!-- past sessions -->
+    <section class="block" id="trainHistoryBlock" hidden>
+      <h3>Sessions</h3>
+      <div class="session-list" id="sessionList"></div>
     </section>
   </main>
 
@@ -353,6 +400,10 @@
     <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M8.4 12.2l2.4 2.4 4.8-5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <span>Today</span>
   </button>
+  <button data-tab="train" aria-label="Train tab">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M7 8v8M4.5 9.5v5M17 8v8M19.5 9.5v5M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <span>Train</span>
+  </button>
   <button data-tab="history" aria-label="History tab">
     <svg viewBox="0 0 24 24" fill="none"><path d="M5 20v-7M12 20V6M19 20v-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
     <span>History</span>
@@ -363,61 +414,78 @@
   </button>
 </nav>
 
-<!-- ======================= SETTINGS SHEET ======================= -->
+<!-- ======================= SETTINGS PAGE ======================= -->
 <div class="sheet-backdrop" id="sheetBackdrop"></div>
-<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-  <div class="sheet-head">
-    <h4 id="sheetTitle">Settings</h4>
-    <button class="icon-btn" id="sheetClose" aria-label="Close settings">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+<div class="settings-page" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="settings-inner">
+    <div class="sheet-head">
+      <h4 id="sheetTitle">Settings</h4>
+      <button class="icon-btn" id="sheetClose" aria-label="Close settings">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="set-sect">Profile</div>
+
+    <div class="set-row" id="profileRow">
+      <div class="set-info">
+        <div class="set-name" id="profileSummary">—</div>
+        <div class="set-meta" id="targetsSummary">—</div>
+      </div>
+      <button class="btn btn-slim" id="editProfileBtn">Edit</button>
+    </div>
+
+    <div class="set-row">
+      <div class="set-info">
+        <div class="set-name">Mode</div>
+        <div class="set-meta" id="modeSummary">—</div>
+      </div>
+      <button class="btn btn-slim" id="modeToggleBtn">Switch</button>
+    </div>
+    <p class="note" id="modeNote" hidden></p>
+
+    <div class="set-row">
+      <div class="set-info">
+        <div class="set-name">Target range</div>
+        <div class="set-meta">How wide "in range" is, each side of a target</div>
+      </div>
+      <span class="field-input tol-input"><input id="toleranceInput" type="number" inputmode="numeric" min="1" max="20" step="1"><i>%</i></span>
+    </div>
+
+    <div class="set-sect">Appearance</div>
+
+    <div class="theme-grid" id="themeGrid"></div>
+    <div class="swatch-lab">Accent color</div>
+    <div class="swatches" id="accentSwatches"></div>
+
+    <div class="set-sect">Layout — Today page</div>
+
+    <div class="layout-list" id="layoutList"></div>
+    <p class="note">Reorder the blocks on the Today tab, or hide the ones you don't use.</p>
+
+    <div class="set-sect">Data</div>
+
+    <div class="set-row" id="backupRow" hidden>
+      <div class="set-info">
+        <div class="set-name">Pre-migration backup</div>
+        <div class="set-meta" id="backupMeta">—</div>
+      </div>
+      <button class="btn btn-slim" id="backupDownloadBtn">Save</button>
+    </div>
+
+    <button class="btn" id="exportBtn">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Export data (JSON)
     </button>
+    <button class="btn" id="importBtn">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 21h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Import data
+    </button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <div class="meta" id="storageInfo">—</div>
+    <div class="meta">All data stays on this device. Export regularly as a backup.<br>
+    Intake · built with Claude Code · food data: Canadian Nutrient File © Health Canada &amp; Open Food Facts.</div>
   </div>
-
-  <div class="set-row" id="profileRow">
-    <div class="set-info">
-      <div class="set-name" id="profileSummary">—</div>
-      <div class="set-meta" id="targetsSummary">—</div>
-    </div>
-    <button class="btn btn-slim" id="editProfileBtn">Edit</button>
-  </div>
-
-  <div class="set-row">
-    <div class="set-info">
-      <div class="set-name">Mode</div>
-      <div class="set-meta" id="modeSummary">—</div>
-    </div>
-    <button class="btn btn-slim" id="modeToggleBtn">Switch</button>
-  </div>
-  <p class="note" id="modeNote" hidden></p>
-
-  <div class="set-row">
-    <div class="set-info">
-      <div class="set-name">Target range</div>
-      <div class="set-meta">How wide "in range" is, each side of a target</div>
-    </div>
-    <span class="field-input tol-input"><input id="toleranceInput" type="number" inputmode="numeric" min="1" max="20" step="1"><i>%</i></span>
-  </div>
-
-  <div class="set-row" id="backupRow" hidden>
-    <div class="set-info">
-      <div class="set-name">Pre-migration backup</div>
-      <div class="set-meta" id="backupMeta">—</div>
-    </div>
-    <button class="btn btn-slim" id="backupDownloadBtn">Save</button>
-  </div>
-
-  <button class="btn" id="exportBtn">
-    <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Export data (JSON)
-  </button>
-  <button class="btn" id="importBtn">
-    <svg viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 21h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Import data
-  </button>
-  <input type="file" id="importFile" accept=".json,application/json" hidden>
-  <div class="meta" id="storageInfo">—</div>
-  <div class="meta">All data stays on this device. Export regularly as a backup.<br>
-  Intake · built with Claude Code · food data: Canadian Nutrient File © Health Canada &amp; Open Food Facts.</div>
 </div>
 
 <!-- ======================= ADD FOOD SHEET ======================= -->
@@ -490,9 +558,39 @@
   <button class="btn-ghost" id="itemDelete">Remove from today</button>
 </div>
 
+<!-- ======================= EXERCISE PICKER SHEET ======================= -->
+<div class="sheet-backdrop" id="exBackdrop"></div>
+<div class="sheet" id="exSheet" role="dialog" aria-modal="true" aria-labelledby="exTitle">
+  <div class="sheet-head">
+    <h4 id="exTitle">Add exercise</h4>
+    <button class="icon-btn" id="exClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <label class="field">
+    <span class="field-input search-input"><input id="exSearch" type="search" placeholder="Search exercises — e.g. bench" aria-label="Search exercises"></span>
+  </label>
+  <div class="chips ex-group-chips" id="exGroups"></div>
+  <div class="food-results ex-results" id="exResults"></div>
+  <div class="ex-custom" id="exCustom" hidden>
+    <div class="swap-lab">New custom exercise</div>
+    <label class="field">
+      <span class="field-lab">Name</span>
+      <input type="text" id="exCustomName" maxlength="60" placeholder="e.g. Belt Squat">
+    </label>
+    <div class="field">
+      <span class="field-lab">Muscle group</span>
+      <div class="chips" id="exCustomGroup"></div>
+    </div>
+    <button class="btn btn-primary" id="exCustomAdd">Create &amp; add to workout</button>
+  </div>
+  <button class="btn-ghost" id="exCustomToggle">+ Create a custom exercise</button>
+</div>
+
 <script src="vendor/chart.umd.min.js"></script>
 <script src="js/migrate.js"></script>
 <script src="js/db.js"></script>
+<script src="js/appearance.js"></script>
 <script src="js/targets.js"></script>
 <script src="js/history.js"></script>
 <script src="js/onboarding.js"></script>
@@ -503,6 +601,8 @@
 <script src="js/today-program.js"></script>
 <script src="js/today-custom.js"></script>
 <script src="js/dashboard.js"></script>
+<script src="js/workouts.js"></script>
+<script src="js/train.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
